@@ -1,0 +1,12 @@
+.DS_Store
+_build/
+target/
+target
+.mooncakes/
+.moonagent/
+*.xz
+!tests/fixtures/*.xz
+
+# Local competition handouts, not part of the published project.
+比赛要求.md
+moonbit使用说明.md
