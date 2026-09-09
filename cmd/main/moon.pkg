@@ -1,0 +1,7 @@
+import {
+  "lin2077-zeming/moonxz",
+  "moonbitlang/core/encoding/hex",
+  "moonbitlang/core/env",
+}
+
+pkgtype(kind: "executable")
