@@ -19,7 +19,7 @@ fn RangeDecoder::new(input : Bytes) -> RangeDecoder raise XzError {
   for i in 1..<5 {
     code = (code << 8) | input[i].to_uint()
   }
-  { input, pos: 5, range: 0xFFFFFFFFU, code }
+  { input, pos: 5, range: 0xFFFFFFFFU, code, }
 }
 
 ///|

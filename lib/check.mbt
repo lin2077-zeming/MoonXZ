@@ -101,7 +101,7 @@ fn sha256_round(
 /// Computes the SHA-256 digest required by XZ check type 10.
 pub fn sha256(data : Bytes) -> Bytes {
   let bit_length = data.length().to_uint64() * 8UL
-  let padded = Array::new()
+  let padded = Array(capacity=data.length() + 9)
   for byte in data {
     padded.push(byte)
   }
@@ -178,7 +178,7 @@ pub fn sha256(data : Bytes) -> Bytes {
     h6 += g
     h7 += h
   }
-  let out = Array::new()
+  let out = Array(capacity=4)
   push_u32_be(out, h0)
   push_u32_be(out, h1)
   push_u32_be(out, h2)
@@ -195,12 +195,12 @@ pub fn check_bytes(kind : CheckKind, data : Bytes) -> Bytes {
   match kind {
     None => b""
     Crc32 => {
-      let out = Array::new()
+      let out = Array(capacity=4)
       push_u32_le(out, crc32(data))
       bytes_from_array(out)
     }
     Crc64 => {
-      let out = Array::new()
+      let out = Array(capacity=8)
       push_u64_le(out, crc64(data))
       bytes_from_array(out)
     }

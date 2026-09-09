@@ -7,7 +7,7 @@ priv struct ByteCursor {
 
 ///|
 fn ByteCursor::new(data : Bytes) -> ByteCursor {
-  { data, pos: 0 }
+  { data, pos: 0, }
 }
 
 ///|

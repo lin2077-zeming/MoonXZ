@@ -48,15 +48,15 @@ fn LzmaDecoder::new(lc : Int, lp : Int, pb : Int) -> LzmaDecoder raise XzError {
   if lc < 0 || lc > 8 || lp < 0 || lp > 4 || pb < 0 || pb > 4 || lc + lp > 4 {
     raise Unsupported("invalid LZMA properties: lc=\{lc} lp=\{lp} pb=\{pb}")
   }
-  let pos_slot = Array::make(4, Array::new())
-  for i in 0..<4 {
-    pos_slot[i] = make_probability_array(64)
+  let pos_slot : Array[Array[UInt]] = Array(capacity=4)
+  for _ in 0..<4 {
+    pos_slot.push(make_probability_array(64))
   }
-  let pos_model = Array::make(10, Array::new())
+  let pos_model : Array[Array[UInt]] = Array(capacity=10)
   for i in 0..<10 {
     let pos_slot_value = 4 + i
     let bits = (pos_slot_value >> 1) - 1
-    pos_model[i] = make_probability_array(1 << bits)
+    pos_model.push(make_probability_array(1 << bits))
   }
   let decoder : LzmaDecoder = {
     state: 0,

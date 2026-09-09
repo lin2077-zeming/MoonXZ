@@ -16,7 +16,7 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 
 ### XZ container
 
-`xz.mbt` 负责：
+`lib/xz.mbt` 负责：
 
 - stream header、footer 和 index 的 CRC32 校验
 - block header 的 flags、VLI、filter 和 padding 解析
@@ -26,7 +26,7 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 
 ### LZMA2
 
-`lzma2.mbt` 负责 chunk 层：
+`lib/lzma2.mbt` 负责 chunk 层：
 
 - EOS、未压缩 chunk、压缩 chunk
 - 未压缩大小、压缩大小和属性字节
@@ -34,7 +34,7 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 
 ### LZMA
 
-`lzma_decoder.mbt` 实现：
+`lib/lzma_decoder.mbt` 实现：
 
 - literal、match、rep-match 的 12 状态机
 - literal context 和 matched literal
@@ -42,12 +42,12 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 - distance slot、reverse tree 和 align bits
 - 字典距离检查和重叠 match 复制
 
-`range_decoder.mbt` 实现 LZMA 使用的 32-bit range decoder、概率更新、
+`lib/range_decoder.mbt` 实现 LZMA 使用的 32-bit range decoder、概率更新、
 direct bits 和正反向 bit tree。
 
 ### 校验
 
-`check.mbt` 实现 XZ 支持的四类 check：
+`lib/check.mbt` 实现 XZ 支持的四类 check：
 
 - none
 - CRC32

@@ -36,6 +36,14 @@ Python `lzma`、`xz-utils` 等标准实现正常解压。这个边界会在
 moon add lin2077-zeming/moonxz
 ```
 
+在 `moon.pkg` 中导入库包并使用别名：
+
+```text
+import {
+  "lin2077-zeming/moonxz/lib" @moonxz,
+}
+```
+
 一次性 API：
 
 ```moonbit
@@ -97,14 +105,14 @@ moon test --target all --deny-warn
 
 ```text
 moon.mod                 模块元数据
-moon.pkg                 根库包配置
-moonxz.mbt               公共 API
-xz.mbt                   XZ 容器解析和存储式写入
-lzma2.mbt                LZMA2 chunk 解析
-lzma_decoder.mbt         LZMA 概率模型和状态机
-range_decoder.mbt        LZMA range decoder
-check.mbt                CRC32 / CRC64 / SHA-256
-util.mbt                 字节游标、VLI 和序列化辅助
+lib/moon.pkg             库包配置
+lib/moonxz.mbt           公共 API
+lib/xz.mbt               XZ 容器解析和存储式写入
+lib/lzma2.mbt            LZMA2 chunk 解析
+lib/lzma_decoder.mbt     LZMA 概率模型和状态机
+lib/range_decoder.mbt    LZMA range decoder
+lib/check.mbt            CRC32 / CRC64 / SHA-256
+lib/util.mbt             字节游标、VLI 和序列化辅助
 cmd/main/                可运行 CLI
 docs/DESIGN.md           实现设计说明
 ```
