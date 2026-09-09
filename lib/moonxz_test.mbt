@@ -67,3 +67,25 @@ test "output limit is enforced" {
     _ => @test.fail("unexpected error")
   }
 }
+
+///|
+test "reject invalid stream magic" {
+  try {
+    let _ = @lib.decompress(b"not an xz stream")
+    @test.fail("expected InvalidHeader")
+  } catch {
+    @lib.InvalidHeader(_) => ()
+    _ => @test.fail("unexpected error")
+  }
+}
+
+///|
+test "reject truncated stream header" {
+  try {
+    let _ = @lib.decompress(b"\xfd7zX")
+    @test.fail("expected Truncated")
+  } catch {
+    @lib.Truncated(_) => ()
+    _ => @test.fail("unexpected error")
+  }
+}
