@@ -44,3 +44,6 @@ jobs:
 
       - name: CLI smoke test
         run: moon run cmd/main -- demo
+
+      - name: Python interoperability
+        run: python scripts/interop.py
