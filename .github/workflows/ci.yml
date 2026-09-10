@@ -43,6 +43,9 @@ jobs:
       - name: Format
         run: moon fmt --check
 
+      - name: Bundle
+        run: moon bundle --all
+
       - name: CLI smoke test
         run: moon run cmd/main -- demo
 
