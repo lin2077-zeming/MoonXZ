@@ -1,5 +1,6 @@
 import {
   "lin2077-zeming/moonxz/lib" @moonxz,
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/hex",
   "moonbitlang/core/env",
 }

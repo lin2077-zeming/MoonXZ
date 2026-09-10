@@ -6,11 +6,11 @@ MoonXZ 的核心目标不是做一个只适用于示例数据的玩具压缩器�
 可以处理标准 XZ 数据、可以被其他实现交叉验证、并能在 MoonBit 的
 wasm、wasm-gc、js 和 native 目标上运行的库。
 
-初版采用“解码优先、编码渐进”的路线：
+实现采用“解码优先、编码渐进”的路线：
 
 1. 先把标准 XZ 容器和 LZMA2 压缩块解码做正确。
-2. 编码端先实现规范兼容的未压缩 LZMA2 块，建立互操作基线。
-3. 后续在稳定的容器和 API 之上增加 range encoder、match finder 和 filter。
+2. 编码端先建立规范兼容的未压缩 LZMA2 块，随后加入 range encoder。
+3. 使用 hash chain match finder 生成 literal 和普通 match，逐步完善压缩率。
 
 ## 分层
 
@@ -32,6 +32,9 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 - 未压缩大小、压缩大小和属性字节
 - 状态重置、属性重置和字典重置
 
+`lib/lzma2_encoder.mbt` 负责 LZMA2 压缩块写入，并在压缩结果不划算时
+自动回退为未压缩块。
+
 ### LZMA
 
 `lib/lzma_decoder.mbt` 实现：
@@ -44,6 +47,14 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 
 `lib/range_decoder.mbt` 实现 LZMA 使用的 32-bit range decoder、概率更新、
 direct bits 和正反向 bit tree。
+
+`lib/range_encoder.mbt` 实现对应的 range encoder 和 32 位溢出处理。
+
+`lib/match_finder.mbt` 建立三字节 hash chain，搜索最长 match，并由压缩级别
+控制链搜索深度。
+
+`lib/lzma_encoder.mbt` 编码 literal、length 和 distance，并维护与解码器
+一致的状态转换和概率模型。
 
 ### 校验
 
@@ -71,13 +82,6 @@ direct bits 和正反向 bit tree。
 `OutputLimitExceeded`，防止解压炸弹。
 
 ## 后续路线
-
-### 0.2.0
-
-- 实现 LZMA range encoder
-- 实现 hash chain match finder
-- 支持压缩级别和字典大小参数
-- 与 Python `lzma` 做编码结果双向交叉验证
 
 ### 0.3.0
 

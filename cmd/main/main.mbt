@@ -10,10 +10,12 @@ fn usage() -> Unit {
 
 ///|
 fn run_demo() -> Unit raise {
-  let input = b"MoonXZ stores data in a standards-compatible XZ stream.\n"
+  let input = Bytes::repeat(b"MoonXZ compressed LZMA2 stream demo.\n", 200)
   let encoded = @moonxz.compress(input)
   let decoded = @moonxz.decompress(encoded)
-  println("input_bytes=\{input.length()} xz_bytes=\{encoded.length()}")
+  println(
+    "input_bytes=\{input.length()} xz_bytes=\{encoded.length()} percent=\{encoded.length() * 100 / input.length()}",
+  )
   println("roundtrip=\{decoded == input}")
   println("xz_hex=\{@hex.encode(encoded)}")
 }
@@ -72,6 +74,6 @@ fn main {
       _ => usage()
     }
   } catch {
-    error => println("error: \{error}")
+    error => println("error: \{@debug.to_string(error)}")
   }
 }

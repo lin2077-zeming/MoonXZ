@@ -4,9 +4,10 @@ MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA2 工具包。项目目标�
 MoonBit 补上标准 `.xz` 格式的读取、校验和写入能力，并保持运行时无关、无
 FFI、可直接发布到 mooncakes.io。
 
-当前版本是可用于比赛初版验收的 `0.1.0`。解压端已经支持标准 XZ 容器和
-LZMA2 压缩块；压缩端先实现规范兼容的 LZMA2 未压缩块，保证与其他 XZ
-实现的互操作性，后续版本会继续加入 range encoder 和 match finder。
+当前版本是 `0.2.0`。解压端支持标准 XZ 容器和 LZMA2 压缩块；压缩端已经
+加入 LZMA2 range encoder、hash chain match finder、压缩级别和字典大小
+参数。默认压缩级别为 6，字典大小为 8 MiB；级别 0 保留规范的未压缩
+LZMA2 块模式。
 
 ## 功能状态
 
@@ -17,16 +18,14 @@ LZMA2 压缩块；压缩端先实现规范兼容的 LZMA2 未压缩块，保证�
 | 拼接 XZ stream 和 stream padding | 支持 |
 | LZMA2 压缩块解码 | 支持 |
 | LZMA2 未压缩块解码 | 支持 |
-| LZMA2 未压缩块编码 | 支持 |
+| LZMA2 range encoder 和压缩编码 | 支持 |
+| Hash chain match finder | 支持 |
+| 压缩级别 0-9 和字典大小参数 | 支持 |
+| LZMA2 未压缩块编码和自动回退 | 支持 |
 | CRC32 / CRC64 / SHA-256 block check | 支持 |
 | 输出大小限制和错误分类 | 支持 |
-| LZMA2 range encoder 和压缩编码 | 计划中 |
 | Delta / BCJ / 多 filter chain | 暂不支持 |
 | LZMA1 `.lzma` 旧格式 | 暂不支持 |
-
-压缩端当前是 store 模式，不会缩小输入数据。它生成的 `.xz` 文件可以被
-Python `lzma`、`xz-utils` 等标准实现正常解压。这个边界会在
-`CHANGELOG.md` 和后续版本说明中保持透明。
 
 ## 安装与使用
 
@@ -59,6 +58,13 @@ fn example() -> Unit raise {
 
 ```moonbit
 let encoded = @moonxz.compress_with_check(input, @moonxz.CheckKind::Sha256)
+```
+
+指定压缩级别和字典大小：
+
+```moonbit
+let options = @moonxz.CompressionOptions::new(level=9, dict_size=8 * 1024 * 1024)
+let encoded = @moonxz.compress_with_options(input, options)
 ```
 
 限制解压输出大小，避免恶意输入造成内存膨胀：
@@ -95,7 +101,8 @@ moon test --target all --deny-warn
 - CRC32 和 SHA-256 已知向量
 - 空输入和普通输入 roundtrip
 - None / CRC32 / CRC64 / SHA-256 四种 block check
-- 超过 64 KiB 的多 LZMA2 chunk 输入
+- 多 LZMA2 chunk、压缩级别和字典大小组合
+- 重复数据和不可压缩数据的自动回退
 - Python `lzma` 生成的压缩 XZ 测试向量
 - 输出大小限制错误
 
@@ -111,6 +118,10 @@ lib/xz.mbt               XZ 容器解析和存储式写入
 lib/lzma2.mbt            LZMA2 chunk 解析
 lib/lzma_decoder.mbt     LZMA 概率模型和状态机
 lib/range_decoder.mbt    LZMA range decoder
+lib/range_encoder.mbt    LZMA range encoder
+lib/lzma_encoder.mbt     LZMA 编码状态机
+lib/lzma2_encoder.mbt    LZMA2 压缩块编码和回退
+lib/match_finder.mbt     Hash chain match finder
 lib/check.mbt            CRC32 / CRC64 / SHA-256
 lib/util.mbt             字节游标、VLI 和序列化辅助
 cmd/main/                可运行 CLI

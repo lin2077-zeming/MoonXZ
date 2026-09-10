@@ -18,7 +18,7 @@ test "empty store roundtrip" {
 }
 
 ///|
-test "store roundtrip with every check type" {
+test "roundtrip with every check type" {
   let input = b"MoonXZ roundtrip test data.\n"
   let checks : Array[@lib.CheckKind] = [
     @lib.CheckKind::None,
@@ -33,10 +33,44 @@ test "store roundtrip with every check type" {
 }
 
 ///|
-test "store encoder splits LZMA2 chunks" {
+test "compressed encoder splits LZMA2 chunks" {
   let input = Bytes::make(150000, b'A')
   let encoded = @lib.compress(input)
   @test.assert_eq(@lib.decompress(encoded), input)
+}
+
+///|
+test "compression options roundtrip" {
+  let input = Bytes::repeat(b"MoonXZ compression options. ", 500)
+  let levels = [1, 6, 9]
+  let dictionaries = [4096, 1 << 20]
+  for level in levels {
+    for dict_size in dictionaries {
+      let options = @lib.CompressionOptions::new(level~, dict_size~)
+      let encoded = @lib.compress_with_options(input, options)
+      @test.assert_eq(@lib.decompress(encoded), input)
+    }
+  }
+}
+
+///|
+test "store level roundtrip" {
+  let input = Bytes::repeat(b"store mode", 300)
+  let encoded = @lib.compress_with_options(
+    input,
+    @lib.CompressionOptions::new(level=0),
+  )
+  @test.assert_eq(@lib.decompress(encoded), input)
+}
+
+///|
+test "compressed output is smaller for repetitive data" {
+  let input = Bytes::make(10000, b'A')
+  let encoded = @lib.compress_with_options(
+    input,
+    @lib.CompressionOptions::new(level=6),
+  )
+  @test.assert_eq(encoded.length() < input.length() / 10, true)
 }
 
 ///|

@@ -273,34 +273,18 @@ fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
 }
 
 ///|
-fn encode_xz_store(data : Bytes, check_kind : CheckKind) -> Bytes {
+fn encode_xz(
+  data : Bytes,
+  options : CompressionOptions,
+  check_kind : CheckKind,
+) -> Bytes {
   let out : Array[Byte] = []
   append_bytes(out, XZ_MAGIC)
   let stream_flags = Bytes::from_array([b'\x00', check_kind.id().to_byte()])
   append_bytes(out, stream_flags)
   push_u32_le(out, crc32(stream_flags))
 
-  let lzma2 : Array[Byte] = []
-  if data.length() > 0 {
-    let mut offset = 0
-    let mut first = true
-    while offset < data.length() {
-      let size = if data.length() - offset > MAX_UNCOMPRESSED_CHUNK {
-        MAX_UNCOMPRESSED_CHUNK
-      } else {
-        data.length() - offset
-      }
-      lzma2.push(if first { b'\x01' } else { b'\x02' })
-      lzma2.push((((size - 1) >> 8) & 0xFF).to_byte())
-      lzma2.push(((size - 1) & 0xFF).to_byte())
-      for i in 0..<size {
-        lzma2.push(data[offset + i])
-      }
-      offset += size
-      first = false
-    }
-  }
-  lzma2.push(b'\x00')
+  let lzma2 = encode_lzma2(data, options)
   let compressed_size = lzma2.length()
   let uncompressed_size = data.length()
 
@@ -311,14 +295,14 @@ fn encode_xz_store(data : Bytes, check_kind : CheckKind) -> Bytes {
   push_vli(block_header, uncompressed_size.to_uint64())
   block_header.push(LZMA2_FILTER_ID.to_byte())
   block_header.push(b'\x01')
-  block_header.push(b'\x00')
+  block_header.push(dictionary_size_code(options.dict_size))
   while block_header.length() % 4 != 0 {
     block_header.push(b'\x00')
   }
   block_header[0] = ((block_header.length() + 4) / 4 - 1).to_byte()
   push_u32_le(block_header, crc32(bytes_from_array(block_header)))
   append_bytes(out, bytes_from_array(block_header))
-  append_bytes(out, bytes_from_array(lzma2))
+  append_bytes(out, lzma2)
   while out.length() % 4 != 0 {
     out.push(b'\x00')
   }

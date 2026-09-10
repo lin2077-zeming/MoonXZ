@@ -113,6 +113,12 @@ fn push_u32_le(out : Array[Byte], value : UInt) -> Unit {
 }
 
 ///|
+fn push_u16_be(out : Array[Byte], value : UInt) -> Unit {
+  out.push(((value >> 8) & 0xFFU).to_byte())
+  out.push((value & 0xFFU).to_byte())
+}
+
+///|
 fn push_u64_le(out : Array[Byte], value : UInt64) -> Unit {
   for shift in 0..<8 {
     out.push(((value >> (shift * 8)) & 0xFFUL).to_byte())
