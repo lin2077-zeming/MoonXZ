@@ -1,9 +1,22 @@
 ///|
 /// Optional filter placed before LZMA2 in an XZ block.
+///
+/// `Delta` is a byte-distance filter and the remaining constructors are the
+/// branch-converter (BCJ) filters defined by the XZ specification. A BCJ filter
+/// rewrites machine-code branch addresses from relative to absolute form so that
+/// the LZMA2 encoder sees repeated byte sequences.
+///
+/// Three BCJ filters that the XZ specification defines are not implemented:
+/// IA64, ARM-Thumb and PowerPC. Each is recognized by filter id but reports
+/// `Unsupported`, so a stream that needs one fails loudly instead of decoding to
+/// wrong bytes.
 pub(all) enum FilterMode {
   None
   Delta(Int)
   X86
+  Arm
+  Arm64
+  Sparc
 }
 
 ///|
@@ -82,4 +95,62 @@ pub fn decompress_with_limit(
     raise OutputLimitExceeded(max_output)
   }
   decode_xz(data, max_output)
+}
+
+///|
+/// Decompresses a legacy LZMA-alone (`.lzma`) stream.
+///
+/// The `.lzma` container predates XZ. It has a 13-byte header with the LZMA
+/// properties, dictionary size and uncompressed size, and carries no checksum,
+/// index or block structure, so it offers no integrity guarantee beyond the
+/// range coder's own consistency checks.
+///
+/// Both header forms are accepted: a recorded uncompressed size, and the
+/// `0xFFFFFFFFFFFFFFFF` sentinel that means the stream carries an end marker.
+pub fn decompress_lzma1(data : Bytes) -> Bytes raise XzError {
+  decode_lzma1(data, 1 << 30)
+}
+
+///|
+/// Decompresses a legacy LZMA-alone stream while refusing outputs larger than
+/// `max_output`.
+pub fn decompress_lzma1_with_limit(
+  data : Bytes,
+  max_output : Int,
+) -> Bytes raise XzError {
+  if max_output < 0 {
+    raise OutputLimitExceeded(max_output)
+  }
+  decode_lzma1(data, max_output)
+}
+
+///|
+/// Compresses `data` into a legacy LZMA-alone (`.lzma`) stream.
+///
+/// `lc`, `lp` and `pb` are the LZMA literal context, literal position and
+/// position bits. The defaults `3`, `0`, `2` are the values the reference
+/// encoder uses, and they are the only combination MoonXZ writes.
+pub fn compress_lzma1(
+  data : Bytes,
+  options? : CompressionOptions = CompressionOptions::new(),
+  lc? : Int = 3,
+  lp? : Int = 0,
+  pb? : Int = 2,
+) -> Bytes raise XzError {
+  encode_lzma1(data, options, lc, lp, pb)
+}
+
+///|
+/// Returns the LZMA properties recorded by a `.lzma` header as `(lc, lp, pb)`.
+/// Useful for reporting why a stream cannot be decoded.
+pub fn lzma1_properties(data : Bytes) -> (Int, Int, Int) raise XzError {
+  let header = parse_lzma1_header(data)
+  (header.lc, header.lp, header.pb)
+}
+
+///|
+/// Returns the uncompressed size recorded by a `.lzma` header, or `None` when
+/// the header stores the unknown-size sentinel.
+pub fn lzma1_declared_size(data : Bytes) -> Int? raise XzError {
+  parse_lzma1_header(data).uncompressed_size
 }
