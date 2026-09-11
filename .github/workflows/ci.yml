@@ -34,6 +34,9 @@ jobs:
       - name: Toolchain
         run: moon version --all
 
+      - name: Update registry
+        run: moon update
+
       - name: Check
         run: moon check --deny-warn --target all
 
