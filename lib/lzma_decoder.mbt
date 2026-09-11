@@ -210,6 +210,36 @@ fn LzmaDecoder::decode_distance(
 }
 
 ///|
+/// An LZMA distance of `0xFFFFFFFF` is reserved as the end-of-stream marker: the
+/// max-distance match with the max-length value. It can never be a real match
+/// because such a distance is larger than any dictionary the format allows.
+fn is_end_marker(distance : UInt) -> Bool {
+  distance >= 0xFFFFFFFFU
+}
+
+///|
+/// Checks that a match distance can be served from the bytes produced so far.
+///
+/// Every distance read from the stream is validated through this function
+/// before it is used to index the output, so corrupt streams raise `Corrupt`
+/// instead of reading outside the dictionary.
+fn LzmaDecoder::match_available(
+  self : LzmaDecoder,
+  output : Array[Byte],
+  distance : UInt,
+  dict_start : Int,
+  dict_size : Int,
+) -> Bool {
+  ignore(self)
+  if is_end_marker(distance) {
+    return false
+  }
+  let actual_distance = distance.reinterpret_as_int() + 1
+  actual_distance <= dict_size &&
+  actual_distance <= output.length() - dict_start
+}
+
+///|
 fn LzmaDecoder::copy_match(
   self : LzmaDecoder,
   output : Array[Byte],
@@ -218,52 +248,63 @@ fn LzmaDecoder::copy_match(
   dict_start : Int,
   dict_size : Int,
 ) -> Unit raise XzError {
-  ignore(self)
-  if distance >= 0xFFFFFFFFU {
-    raise Corrupt("LZMA end marker is not valid inside an LZMA2 chunk")
-  }
-  let actual_distance = distance.reinterpret_as_int() + 1
-  if actual_distance > dict_size ||
-    actual_distance > output.length() - dict_start {
+  if !self.match_available(output, distance, dict_start, dict_size) {
+    if is_end_marker(distance) {
+      raise Corrupt("LZMA end marker is not valid inside an LZMA2 chunk")
+    }
     raise Corrupt("LZMA match distance exceeds the available dictionary")
   }
+  let actual_distance = distance.reinterpret_as_int() + 1
   for _ in 0..<length {
     let index = output.length() - actual_distance
+    // `match_available` already proved `index` is inside the window. This guard
+    // keeps a corrupt stream from panicking even if a future change to the match
+    // path ever lets an out-of-range distance through.
+    if index < dict_start || index < 0 || index >= output.length() {
+      raise Corrupt("LZMA match copy left the dictionary window")
+    }
     output.push(output[index])
   }
 }
 
 ///|
-fn LzmaDecoder::decode_literal(
+fn LzmaDecoder::decode_literal_unmatched(
   self : LzmaDecoder,
   range : RangeDecoder,
   output : Array[Byte],
-  dict_start : Int,
+  literal_state : Int,
 ) -> Unit raise XzError {
-  let position = output.length() - dict_start
-  let previous = if position == 0 {
-    b'\x00'
-  } else {
-    output[output.length() - 1]
-  }
-  let literal_state = ((position & ((1 << self.lp) - 1)) << self.lc) |
-    (previous.to_int() >> (8 - self.lc))
   let base = literal_state * 0x300
   let mut symbol : UInt = 1U
-  if self.state >= 7 {
-    let match_byte = output[output.length() - self.rep0.reinterpret_as_int() - 1].to_uint()
-    let mut matched : UInt = match_byte
-    for _ in 0..<8 {
-      let match_bit = (matched >> 7) & 1U
-      matched = matched << 1
-      let bit = range.decode_bit(
-        self.literal_probs,
-        base + (((1U + match_bit) << 8) | symbol).reinterpret_as_int(),
-      )
-      symbol = (symbol << 1) | bit
-      if match_bit != bit || symbol >= 0x100U {
-        break
-      }
+  while symbol < 0x100U {
+    symbol = (symbol << 1) |
+      range.decode_bit(self.literal_probs, base + symbol.reinterpret_as_int())
+  }
+  output.push((symbol - 0x100U).to_byte())
+  self.update_state_literal()
+}
+
+///|
+fn LzmaDecoder::decode_literal_matched(
+  self : LzmaDecoder,
+  range : RangeDecoder,
+  output : Array[Byte],
+  literal_state : Int,
+  match_byte : UInt,
+) -> Unit raise XzError {
+  let base = literal_state * 0x300
+  let mut symbol : UInt = 1U
+  let mut matched : UInt = match_byte
+  while symbol < 0x100U {
+    let match_bit = (matched >> 7) & 1U
+    matched = matched << 1
+    let bit = range.decode_bit(
+      self.literal_probs,
+      base + (((1U + match_bit) << 8) | symbol).reinterpret_as_int(),
+    )
+    symbol = (symbol << 1) | bit
+    if match_bit != bit {
+      break
     }
   }
   while symbol < 0x100U {
@@ -275,6 +316,35 @@ fn LzmaDecoder::decode_literal(
 }
 
 ///|
+fn LzmaDecoder::decode_literal(
+  self : LzmaDecoder,
+  range : RangeDecoder,
+  output : Array[Byte],
+  dict_start : Int,
+  dict_size : Int,
+) -> Unit raise XzError {
+  let position = output.length() - dict_start
+  let previous = if position == 0 {
+    b'\x00'
+  } else {
+    output[output.length() - 1]
+  }
+  let literal_state = ((position & ((1 << self.lp) - 1)) << self.lc) |
+    (previous.to_int() >> (8 - self.lc))
+  if self.state >= 7 {
+    // A matched literal reads the byte at the current rep0 distance, so the
+    // distance is validated before it is used as an index.
+    if !self.match_available(output, self.rep0, dict_start, dict_size) {
+      raise Corrupt("LZMA matched literal has no valid rep0 distance")
+    }
+    let match_byte = output[output.length() - self.rep0.reinterpret_as_int() - 1].to_uint()
+    self.decode_literal_matched(range, output, literal_state, match_byte)
+  } else {
+    self.decode_literal_unmatched(range, output, literal_state)
+  }
+}
+
+///|
 fn LzmaDecoder::decode_chunk(
   self : LzmaDecoder,
   compressed : Bytes,
@@ -282,53 +352,155 @@ fn LzmaDecoder::decode_chunk(
   output : Array[Byte],
   dict_start : Int,
   dict_size : Int,
+  max_output : Int,
 ) -> Unit raise XzError {
-  let start = output.length()
+  let _ = decode_stream(
+    self,
+    compressed,
+    Some(uncompressed_size),
+    output,
+    dict_start,
+    dict_size,
+    max_output,
+  )
+}
+
+///|
+/// Decodes one LZMA range-coded stream segment.
+///
+/// `target_size` is `Some(n)` when the caller already knows how many bytes this
+/// segment produces, which is how LZMA2 chunks and LZMA-alone streams with a
+/// recorded size behave. When it is `None` the decoder runs until the stream's
+/// end marker, which is how `.lzma` files written by a streaming compressor
+/// signal completion.
+///
+/// `segment_start` is the output length when this segment began. Progress is
+/// measured from it, not from `dict_start`: a chunk can keep the previous
+/// dictionary (`dict_start` stays behind) while still being an independently
+/// sized segment, so mixing the two would let one chunk satisfy the next
+/// chunk's size target.
+///
+/// `max_output` is an absolute bound on the total decoded size, not a bound
+/// relative to the segment.
+///
+/// Returns the finished range decoder together with a flag telling whether an
+/// end marker was consumed, so the caller can report the exact number of input
+/// bytes the stream used.
+fn decode_stream(
+  decoder : LzmaDecoder,
+  compressed : Bytes,
+  target_size : Int?,
+  output : Array[Byte],
+  dict_start : Int,
+  dict_size : Int,
+  max_output : Int,
+) -> (RangeDecoder, Bool) raise XzError {
   let range = RangeDecoder::new(compressed)
-  while output.length() - start < uncompressed_size {
+  let segment_start = output.length()
+  let mut saw_end_marker = false
+  while true {
+    match target_size {
+      Some(size) => if output.length() - segment_start >= size { break }
+      None => ()
+    }
+    if output.length() > max_output {
+      raise OutputLimitExceeded(max_output)
+    }
     let position = output.length() - dict_start
-    let pos_state = position & ((1 << self.pb) - 1)
-    let state_index = self.state * 16 + pos_state
-    if range.decode_bit(self.is_match, state_index) == 0U {
-      self.decode_literal(range, output, dict_start)
+    let pos_state = position & ((1 << decoder.pb) - 1)
+    let state_index = decoder.state * 16 + pos_state
+    if range.decode_bit(decoder.is_match, state_index) == 0U {
+      decoder.decode_literal(range, output, dict_start, dict_size)
       continue
     }
-    if range.decode_bit(self.is_rep, self.state) == 0U {
-      self.rep3 = self.rep2
-      self.rep2 = self.rep1
-      self.rep1 = self.rep0
-      self.update_state_match()
-      let length = self.decode_length(range, pos_state, false)
-      self.rep0 = self.decode_distance(range, length)
-      self.copy_match(output, self.rep0, length, dict_start, dict_size)
+    if range.decode_bit(decoder.is_rep, decoder.state) == 0U {
+      decoder.rep3 = decoder.rep2
+      decoder.rep2 = decoder.rep1
+      decoder.rep1 = decoder.rep0
+      decoder.update_state_match()
+      let length = decoder.decode_length(range, pos_state, false)
+      let distance = decoder.decode_distance(range, length)
+      if is_end_marker(distance) {
+        // The end marker is only meaningful while scanning for the natural end
+        // of a stream. Inside a size-bounded chunk it means the input is
+        // corrupt, because the declared size was not reached.
+        match target_size {
+          None => {
+            saw_end_marker = true
+            break
+          }
+          Some(_) =>
+            raise Corrupt("LZMA end marker inside a size-bounded chunk")
+        }
+      }
+      decoder.rep0 = distance
+      decoder.copy_match(output, decoder.rep0, length, dict_start, dict_size)
       continue
     }
-    let mut distance = self.rep0
-    if range.decode_bit(self.is_rep_g0, self.state) == 0U {
-      if range.decode_bit(self.is_rep0_long, state_index) == 0U {
-        self.update_state_short_rep()
-        self.copy_match(output, distance, 1, dict_start, dict_size)
+    let mut distance = decoder.rep0
+    if range.decode_bit(decoder.is_rep_g0, decoder.state) == 0U {
+      if range.decode_bit(decoder.is_rep0_long, state_index) == 0U {
+        decoder.update_state_short_rep()
+        decoder.copy_match(output, distance, 1, dict_start, dict_size)
         continue
       }
     } else {
-      if range.decode_bit(self.is_rep_g1, self.state) == 0U {
-        distance = self.rep1
+      if range.decode_bit(decoder.is_rep_g1, decoder.state) == 0U {
+        distance = decoder.rep1
       } else {
-        if range.decode_bit(self.is_rep_g2, self.state) == 0U {
-          distance = self.rep2
+        if range.decode_bit(decoder.is_rep_g2, decoder.state) == 0U {
+          distance = decoder.rep2
         } else {
-          distance = self.rep3
-          self.rep3 = self.rep2
+          distance = decoder.rep3
+          decoder.rep3 = decoder.rep2
         }
-        self.rep2 = self.rep1
+        decoder.rep2 = decoder.rep1
       }
-      self.rep1 = self.rep0
-      self.rep0 = distance
+      decoder.rep1 = decoder.rep0
+      decoder.rep0 = distance
     }
-    let length = self.decode_length(range, pos_state, true)
-    self.update_state_rep()
-    self.copy_match(output, distance, length, dict_start, dict_size)
+    let length = decoder.decode_length(range, pos_state, true)
+    decoder.update_state_rep()
+    decoder.copy_match(output, distance, length, dict_start, dict_size)
   }
+  (range, saw_end_marker)
+}
+
+///|
+/// Result of decoding an LZMA-alone stream.
+priv struct Lzma1Stream {
+  data : Bytes
+  reached_end_marker : Bool
+}
+
+///|
+/// Decodes the range-coded part of an LZMA-alone stream.
+///
+/// `compressed` is the input starting at the byte after the 13-byte `.lzma`
+/// header. `target_size` mirrors `decode_stream`: a known size stops the decoder
+/// exactly at that byte count, while `None` runs to the end marker.
+fn decode_lzma1_stream(
+  compressed : Bytes,
+  lc : Int,
+  lp : Int,
+  pb : Int,
+  dict_size : Int,
+  target_size : Int?,
+  max_output : Int,
+) -> Lzma1Stream raise XzError {
+  match target_size {
+    Some(size) => if size > max_output { raise OutputLimitExceeded(max_output) }
+    None => ()
+  }
+  let output : Array[Byte] = []
+  let decoder = LzmaDecoder::new(lc, lp, pb)
+  let (_range, saw_end_marker) = decode_stream(
+    decoder, compressed, target_size, output, 0, dict_size, max_output,
+  )
+  if output.length() > max_output {
+    raise OutputLimitExceeded(max_output)
+  }
+  { data: bytes_from_array(output), reached_end_marker: saw_end_marker, }
 }
 
 ///|

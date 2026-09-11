@@ -1,5 +1,11 @@
 ///|
 /// Decodes a complete LZMA2 chunk sequence into a byte array.
+///
+/// The uncompressed size each chunk declares is cross-checked against the bytes
+/// the chunk actually produced. That keeps a corrupted or inconsistent framing
+/// from being silently ignored, which matters because a decoder that trusts only
+/// the block header would otherwise accept streams whose two size records
+/// disagree.
 fn decode_lzma2(
   input : Bytes,
   dict_size : Int,
@@ -52,9 +58,16 @@ fn decode_lzma2(
     if output.length() + uncompressed_size > max_output {
       raise OutputLimitExceeded(max_output)
     }
+    let before_this_chunk = output.length()
     decoder.decode_chunk(
-      compressed, uncompressed_size, output, dict_start, dict_size,
+      compressed, uncompressed_size, output, dict_start, dict_size, max_output,
     )
+    let produced = output.length() - before_this_chunk
+    if produced != uncompressed_size {
+      raise Corrupt(
+        "LZMA2 chunk declared \{uncompressed_size} uncompressed bytes but produced \{produced}",
+      )
+    }
   }
   bytes_from_array(output)
 }

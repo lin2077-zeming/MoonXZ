@@ -24,9 +24,15 @@ priv struct LzmaEncoder {
 
 ///|
 fn LzmaEncoder::new() -> LzmaEncoder {
-  let lc = 3
-  let lp = 0
-  let pb = 2
+  LzmaEncoder::with_properties(3, 0, 2)
+}
+
+///|
+/// Creates an encoder that writes a stream with the given LZMA properties.
+///
+/// The probability arrays depend on `lc + lp`, so they are sized from the
+/// requested properties instead of the usual fixed defaults.
+fn LzmaEncoder::with_properties(lc : Int, lp : Int, pb : Int) -> LzmaEncoder {
   let pos_slot : Array[Array[UInt]] = Array(capacity=4)
   for _ in 0..<4 {
     pos_slot.push(make_probability_array(64))
