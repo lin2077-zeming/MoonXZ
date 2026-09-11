@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0
+
+- 新增 LZMA1 / `.lzma` 旧格式解码：13 字节头解析、已声明大小与 EOS 标记两种
+  终止方式，并用 Python `lzma` 的 `FORMAT_ALONE` 与流式压缩器双向验证
+- 新增公开 API `decompress_lzma1`、`decompress_lzma1_with_limit`、
+  `compress_lzma1`、`lzma1_properties`、`lzma1_declared_size`
+- 新增 ARM、ARM64、SPARC 三个 BCJ filter，均以 Python `liblzma` 生成的向量
+  做解码验证，并验证 liblzma 能解回 MoonXZ 的编码结果
+- 明确 IA64、ARM-Thumb、PowerPC 三个 BCJ filter 尚未实现：遇到对应 filter id
+  返回 `Unsupported`，而不是输出错误字节
+- 修复 LZMA2 多 chunk 解码的进度计算错误：进度必须相对 chunk 起点衡量，不能
+  相对字典起点，否则上一个 chunk 的产出会错误地满足下一个 chunk 的大小目标
+- 修复重叠 match 拷贝在损坏输入下可能越界读取导致的 panic
+- 新增 LZMA2 chunk 声明大小与实际产出大小的交叉校验，以及 LZMA2 框架长度与
+  block header 声明长度的交叉校验
+- 新增测试：单字节全量变异、逐字节截断、`.lzma` 头部拒绝、多 chunk 尺寸矩阵
+- 测试数从 20 增至 32
+
 ## 0.3.0
 
 - 实现 delta filter 和 x86 BCJ filter

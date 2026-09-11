@@ -1,9 +1,10 @@
-// MoonXZ is a pure MoonBit implementation of the XZ container format and
-// the LZMA2 filter. See README.md for the current feature matrix.
+// MoonXZ is a pure MoonBit implementation of the XZ container format, the
+// LZMA2 filter and the legacy LZMA-alone format. See README.md for the current
+// feature matrix.
 
 name = "lin2077-zeming/moonxz"
 
-version = "0.3.0"
+version = "0.4.0"
 
 readme = "README.md"
 
@@ -15,7 +16,7 @@ keywords = [ "xz", "lzma", "lzma2", "compression", "decompression" ]
 
 preferred_target = "wasm"
 
-description = "Pure MoonBit XZ/LZMA2 compression and decompression toolkit"
+description = "Pure MoonBit XZ/LZMA/LZMA2 compression and decompression toolkit"
 
 import {
   "moonbitlang/x@0.4.46",
