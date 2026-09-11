@@ -14,6 +14,12 @@ const MAX_BLOCK_HEADER : Int = 1024
 const MAX_UNCOMPRESSED_CHUNK : Int = 65536
 
 ///|
+priv struct FilterSpec {
+  id : UInt64
+  properties : Bytes
+}
+
+///|
 fn decode_dict_size(code : Byte) -> Int raise XzError {
   let value = code.to_int()
   if value > 40 {
@@ -61,7 +67,9 @@ fn read_stream_header(cursor : ByteCursor) -> CheckKind raise XzError {
 }
 
 ///|
-fn parse_block_header(header : Bytes) -> (Int?, Int?, Int, Int) raise XzError {
+fn parse_block_header(
+  header : Bytes,
+) -> (Int?, Int?, Int, Array[FilterSpec]) raise XzError {
   let length = header.length()
   if length < 8 || length > MAX_BLOCK_HEADER || length % 4 != 0 {
     raise Corrupt("invalid XZ block header length")
@@ -78,8 +86,10 @@ fn parse_block_header(header : Bytes) -> (Int?, Int?, Int, Int) raise XzError {
     raise Corrupt("reserved XZ block flags are set")
   }
   let filter_count = (flags & 0x03) + 1
-  if filter_count != 1 {
-    raise Unsupported("only a single LZMA2 filter is supported")
+  if filter_count < 1 || filter_count > 2 {
+    raise Unsupported(
+      "only XZ filter chains with one or two filters are supported",
+    )
   }
   let compressed_size = if (flags & 0x40) != 0 {
     Some(usize_of_u64(body.read_vli(), "compressed size"))
@@ -91,21 +101,37 @@ fn parse_block_header(header : Bytes) -> (Int?, Int?, Int, Int) raise XzError {
   } else {
     None
   }
-  let filter_id = body.read_vli()
-  if filter_id != LZMA2_FILTER_ID {
-    raise Unsupported("unsupported XZ filter id \{filter_id}")
+  let filters : Array[FilterSpec] = []
+  for filter_index in 0..<filter_count {
+    let filter_id = body.read_vli()
+    let properties_size = usize_of_u64(
+      body.read_vli(),
+      "filter properties size",
+    )
+    let properties = body.read_bytes(properties_size)
+    if filter_id == LZMA2_FILTER_ID {
+      if filter_index != filter_count - 1 || properties_size != 1 {
+        raise Corrupt("LZMA2 must be the final one-byte filter")
+      }
+    } else if filter_id == 0x03UL {
+      if filter_index != 0 || filter_count != 2 || properties_size != 1 {
+        raise Corrupt("invalid delta filter position or properties")
+      }
+    } else if filter_id == 0x04UL {
+      if filter_index != 0 || filter_count != 2 || properties_size != 0 {
+        raise Corrupt("invalid x86 BCJ filter position or properties")
+      }
+    } else {
+      raise Unsupported("unsupported XZ filter id \{filter_id}")
+    }
+    filters.push({ id: filter_id, properties, })
   }
-  let properties_size = usize_of_u64(body.read_vli(), "filter properties size")
-  if properties_size != 1 {
-    raise Corrupt("LZMA2 filter must have one property byte")
-  }
-  let properties = body.read_byte()
   while body.remaining() > 0 {
     if body.read_byte() != b'\x00' {
       raise Corrupt("non-zero XZ block header padding")
     }
   }
-  (compressed_size, uncompressed_size, length, decode_dict_size(properties))
+  (compressed_size, uncompressed_size, length, filters)
 }
 
 ///|
@@ -134,6 +160,41 @@ fn scan_lzma2_size(data : Bytes, start : Int) -> Int raise XzError {
       let _ = cursor.read_byte()
     }
     cursor.skip(compressed_size)
+  }
+  result
+}
+
+///|
+fn filter_dict_size(filters : Array[FilterSpec]) -> Int raise XzError {
+  if filters.length() == 0 {
+    raise Corrupt("XZ block has no filter chain")
+  }
+  let lzma2 = filters[filters.length() - 1]
+  if lzma2.id != LZMA2_FILTER_ID || lzma2.properties.length() != 1 {
+    raise Corrupt("XZ block does not end with LZMA2")
+  }
+  decode_dict_size(lzma2.properties[0])
+}
+
+///|
+fn decode_filter_chain(
+  filters : Array[FilterSpec],
+  data : Bytes,
+) -> Bytes raise XzError {
+  let mut result = data
+  for index in 0..<(filters.length() - 1) {
+    let filter = filters[filters.length() - 2 - index]
+    let mode = if filter.id == 0x03UL {
+      if filter.properties.length() != 1 {
+        raise Corrupt("delta filter must have one property byte")
+      }
+      Delta(filter.properties[0].to_int() + 1)
+    } else if filter.id == 0x04UL {
+      X86
+    } else {
+      raise Unsupported("unsupported XZ filter id \{filter.id}")
+    }
+    result = decode_filter(result, mode)
   }
   result
 }
@@ -226,7 +287,7 @@ fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
         raise Corrupt("invalid XZ block header size")
       }
       let header = cursor.read_bytes(header_length)
-      let (compressed_size_opt, uncompressed_size_opt, header_length, dict_size) = parse_block_header(
+      let (compressed_size_opt, uncompressed_size_opt, header_length, filters) = parse_block_header(
         header,
       )
       let compressed_size = match compressed_size_opt {
@@ -241,11 +302,12 @@ fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
         None => ()
       }
       let compressed = cursor.read_bytes(compressed_size)
-      let decoded = decode_lzma2(
+      let filtered = decode_lzma2(
         compressed,
-        dict_size,
+        filter_dict_size(filters),
         max_output - output.length(),
       )
+      let decoded = decode_filter_chain(filters, filtered)
       match uncompressed_size_opt {
         Some(expected) =>
           if decoded.length() != expected {
@@ -273,26 +335,44 @@ fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
 }
 
 ///|
-fn encode_xz(
-  data : Bytes,
-  options : CompressionOptions,
-  check_kind : CheckKind,
-) -> Bytes {
+fn encode_stream_header(check_kind : CheckKind) -> Bytes {
   let out : Array[Byte] = []
   append_bytes(out, XZ_MAGIC)
   let stream_flags = Bytes::from_array([b'\x00', check_kind.id().to_byte()])
   append_bytes(out, stream_flags)
   push_u32_le(out, crc32(stream_flags))
+  bytes_from_array(out)
+}
 
-  let lzma2 = encode_lzma2(data, options)
+///|
+fn encode_xz_block(
+  data : Bytes,
+  options : CompressionOptions,
+  check_kind : CheckKind,
+) -> (Bytes, Int, Int) {
+  let out : Array[Byte] = []
+  let filtered = encode_filter(data, options.filter)
+  let lzma2 = encode_lzma2(filtered, options)
   let compressed_size = lzma2.length()
   let uncompressed_size = data.length()
 
   let block_header : Array[Byte] = []
   block_header.push(b'\x00')
-  block_header.push(b'\xC0')
+  block_header.push(if options.filter is None { b'\xC0' } else { b'\xC1' })
   push_vli(block_header, compressed_size.to_uint64())
   push_vli(block_header, uncompressed_size.to_uint64())
+  match options.filter {
+    None => ()
+    Delta(distance) => {
+      block_header.push(b'\x03')
+      block_header.push(b'\x01')
+      block_header.push((normalize_delta_distance(distance) - 1).to_byte())
+    }
+    X86 => {
+      block_header.push(b'\x04')
+      block_header.push(b'\x00')
+    }
+  }
   block_header.push(LZMA2_FILTER_ID.to_byte())
   block_header.push(b'\x01')
   block_header.push(dictionary_size_code(options.dict_size))
@@ -306,21 +386,31 @@ fn encode_xz(
   while out.length() % 4 != 0 {
     out.push(b'\x00')
   }
-  append_bytes(out, check_bytes(check_kind, data))
-
-  let index : Array[Byte] = [b'\x00', b'\x01']
   let check_size = check_kind.size()
-  let block_unpadded = block_header.length() + compressed_size + check_size
-  push_vli(index, block_unpadded.to_uint64())
-  push_vli(index, uncompressed_size.to_uint64())
+  append_bytes(out, check_bytes(check_kind, data))
+  let unpadded = block_header.length() + compressed_size + check_size
+  (bytes_from_array(out), unpadded, uncompressed_size)
+}
+
+///|
+fn encode_index(records : Array[(Int, Int)]) -> Bytes {
+  let index : Array[Byte] = [b'\x00']
+  push_vli(index, records.length().to_uint64())
+  for record in records {
+    push_vli(index, record.0.to_uint64())
+    push_vli(index, record.1.to_uint64())
+  }
   while index.length() % 4 != 0 {
     index.push(b'\x00')
   }
   push_u32_le(index, crc32(bytes_from_array(index)))
-  append_bytes(out, bytes_from_array(index))
+  bytes_from_array(index)
+}
 
+///|
+fn encode_footer(index_size : Int, check_kind : CheckKind) -> Bytes {
   let footer : Array[Byte] = []
-  push_u32_le(footer, (index.length() / 4 - 1).reinterpret_as_uint())
+  push_u32_le(footer, (index_size / 4 - 1).reinterpret_as_uint())
   footer.push(b'\x00')
   footer.push(check_kind.id().to_byte())
   let footer_crc = crc32(bytes_from_array(footer))
@@ -328,6 +418,27 @@ fn encode_xz(
   push_u32_le(footer_with_crc, footer_crc)
   append_bytes(footer_with_crc, bytes_from_array(footer))
   append_bytes(footer_with_crc, XZ_FOOTER_MAGIC)
-  append_bytes(out, bytes_from_array(footer_with_crc))
+  bytes_from_array(footer_with_crc)
+}
+
+///|
+fn encode_xz(
+  data : Bytes,
+  options : CompressionOptions,
+  check_kind : CheckKind,
+) -> Bytes {
+  let out : Array[Byte] = []
+  append_bytes(out, encode_stream_header(check_kind))
+  let records : Array[(Int, Int)] = []
+  if data.length() > 0 {
+    let (block, unpadded, uncompressed) = encode_xz_block(
+      data, options, check_kind,
+    )
+    append_bytes(out, block)
+    records.push((unpadded, uncompressed))
+  }
+  let index = encode_index(records)
+  append_bytes(out, index)
+  append_bytes(out, encode_footer(index.length(), check_kind))
   bytes_from_array(out)
 }

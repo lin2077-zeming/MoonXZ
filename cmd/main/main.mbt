@@ -1,11 +1,15 @@
 ///|
 fn usage() -> Unit {
-  println("MoonXZ 0.1.0")
+  println("MoonXZ 0.3.0")
   println("usage:")
   println("  moonxz demo")
   println("  moonxz compress <hex> [none|crc32|crc64|sha256]")
   println("  moonxz decompress <hex>")
   println("  moonxz roundtrip <hex>")
+  println(
+    "  moonxz compress-file <input> <output> [none|crc32|crc64|sha256] [none|x86|delta]",
+  )
+  println("  moonxz decompress-file <input> <output>")
 }
 
 ///|
@@ -28,6 +32,19 @@ fn parse_check(name : String) -> @moonxz.CheckKind? {
     "crc64" => Some(@moonxz.CheckKind::Crc64)
     "sha256" => Some(@moonxz.CheckKind::Sha256)
     _ => None
+  }
+}
+
+///|
+fn parse_filter(name : String) -> @moonxz.FilterMode? {
+  if name == "none" {
+    Some(@moonxz.FilterMode::None)
+  } else if name == "x86" {
+    Some(@moonxz.FilterMode::X86)
+  } else if name == "delta" {
+    Some(@moonxz.FilterMode::Delta(1))
+  } else {
+    None
   }
 }
 
@@ -57,6 +74,52 @@ fn run_roundtrip(hex : String) -> Unit raise {
 }
 
 ///|
+fn run_compress_file(
+  input_path : String,
+  output_path : String,
+  check_name : String,
+  filter_name : String,
+) -> Unit raise {
+  let check_kind = match parse_check(check_name) {
+    Some(value) => value
+    None => raise Failure::Failure("unknown check type: \{check_name}")
+  }
+  let filter = match parse_filter(filter_name) {
+    Some(value) => value
+    None => raise Failure::Failure("unknown filter: \{filter_name}")
+  }
+  let input = @fs.read_file_to_bytes(input_path)
+  let options = @moonxz.CompressionOptions::new(filter~)
+  let writer = @moonxz.XzWriter::new(check_kind~, options~)
+  let output = writer.write(input) + writer.finish()
+  @fs.write_bytes_to_file(output_path, output)
+  println(
+    "compressed input_bytes=\{input.length()} output_bytes=\{output.length()}",
+  )
+}
+
+///|
+fn run_decompress_file(input_path : String, output_path : String) -> Unit raise {
+  let input = @fs.read_file_to_bytes(input_path)
+  let reader = @moonxz.XzReader::new(input)
+  let output : Array[Byte] = []
+  while true {
+    match reader.read_block() {
+      Some(block) =>
+        for byte in block {
+          output.push(byte)
+        }
+      None => break
+    }
+  }
+  let decoded = Bytes::from_array(output)
+  @fs.write_bytes_to_file(output_path, decoded)
+  println(
+    "decompressed input_bytes=\{input.length()} output_bytes=\{decoded.length()}",
+  )
+}
+
+///|
 fn main {
   let args = @env.args()
   if args.length() < 2 {
@@ -71,6 +134,14 @@ fn main {
       "compress" if args.length() == 4 => run_compress(args[2], args[3])
       "decompress" if args.length() == 3 => run_decompress(args[2])
       "roundtrip" if args.length() == 3 => run_roundtrip(args[2])
+      "compress-file" if args.length() == 4 =>
+        run_compress_file(args[2], args[3], "crc64", "none")
+      "compress-file" if args.length() == 5 =>
+        run_compress_file(args[2], args[3], args[4], "none")
+      "compress-file" if args.length() == 6 =>
+        run_compress_file(args[2], args[3], args[4], args[5])
+      "decompress-file" if args.length() == 4 =>
+        run_decompress_file(args[2], args[3])
       _ => usage()
     }
   } catch {

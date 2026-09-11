@@ -1,6 +1,7 @@
 ///|
 /// A small checked cursor over an immutable byte sequence.
-priv struct ByteCursor {
+#doc(hidden)
+pub struct ByteCursor {
   data : Bytes
   mut pos : Int
 }

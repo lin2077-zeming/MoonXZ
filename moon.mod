@@ -3,7 +3,7 @@
 
 name = "lin2077-zeming/moonxz"
 
-version = "0.2.0"
+version = "0.3.0"
 
 readme = "README.md"
 
@@ -16,3 +16,7 @@ keywords = [ "xz", "lzma", "lzma2", "compression", "decompression" ]
 preferred_target = "wasm"
 
 description = "Pure MoonBit XZ/LZMA2 compression and decompression toolkit"
+
+import {
+  "moonbitlang/x@0.4.46",
+}

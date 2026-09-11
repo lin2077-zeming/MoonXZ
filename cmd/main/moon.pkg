@@ -3,6 +3,7 @@ import {
   "moonbitlang/core/debug",
   "moonbitlang/core/encoding/hex",
   "moonbitlang/core/env",
+  "moonbitlang/x/fs",
 }
 
 pkgtype(kind: "executable")

@@ -64,6 +64,30 @@ test "store level roundtrip" {
 }
 
 ///|
+test "delta filter roundtrip" {
+  let input = Bytes::repeat(b"Delta filter roundtrip data. ", 80)
+  let options = @lib.CompressionOptions::new(
+    level=6,
+    filter=@lib.FilterMode::Delta(3),
+  )
+  let encoded = @lib.compress_with_options(input, options)
+  @test.assert_eq(@lib.decompress(encoded), input)
+}
+
+///|
+test "x86 BCJ filter roundtrip" {
+  let input = @hex.decode(
+    "e800000000e9fbffffff90e801000000c3e800000000e9fbffffff",
+  )
+  let options = @lib.CompressionOptions::new(
+    level=6,
+    filter=@lib.FilterMode::X86,
+  )
+  let encoded = @lib.compress_with_options(input, options)
+  @test.assert_eq(@lib.decompress(encoded), input)
+}
+
+///|
 test "compressed output is smaller for repetitive data" {
   let input = Bytes::make(10000, b'A')
   let encoded = @lib.compress_with_options(
@@ -83,11 +107,70 @@ test "decode Python lzma fixture" {
 }
 
 ///|
+test "decode Python delta filter fixture" {
+  let fixture = @hex.decode(
+    "fd377a585a000004e6d6b44602010301012101161c477856e000d700265d0022194100f7eadad6ee9e5f3cd81dd2628ec8d5393eef84ae75368c9ce2f9c575c494b6d2c000000000f4b9491e0e91073c000142d801000000472cfc80b1c467fb020000000004595a",
+  )
+  let expected = Bytes::repeat(b"Delta filter fixture data. ", 8)
+  @test.assert_eq(@lib.decompress(fixture), expected)
+}
+
+///|
+test "decode Python x86 BCJ fixture" {
+  let fixture = @hex.decode(
+    "fd377a585a000004e6d6b44602010400210116000d86351f010010e805000000e90500000090e811000000c30000000045790daf2939e79800012911320a700e1fb6f37d010000000004595a",
+  )
+  let expected = @hex.decode("e800000000e9fbffffff90e801000000c3")
+  @test.assert_eq(@lib.decompress(fixture), expected)
+}
+
+///|
 test "decode concatenated streams with padding" {
   let fixture = @hex.decode(
     "fd377a585a000004e6d6b4460200210116000000742fe5a301000466697273740000000056ad19257a06e5f300011d05b82d80af1fb6f37d010000000004595a00000000fd377a585a000004e6d6b4460200210116000000742fe5a30100057365636f6e6400000038e888c5c630b47400011e06c12fa41d1fb6f37d010000000004595a",
   )
   @test.assert_eq(@lib.decompress(fixture), b"firstsecond")
+}
+
+///|
+test "streaming writer and reader use multiple blocks" {
+  let writer = @lib.XzWriter::new()
+  let first = writer.write(b"first chunk")
+  let second = writer.write(b"second chunk")
+  let tail = writer.finish()
+  let encoded = first + second + tail
+  let reader = @lib.XzReader::new(encoded)
+  try {
+    @test.assert_eq(reader.read_block(), Some(b"first chunk"))
+    @test.assert_eq(reader.read_block(), Some(b"second chunk"))
+    @test.assert_eq(reader.read_block(), None)
+  } catch {
+    @lib.ChecksumMismatch(message) => @test.fail(message)
+    _ => @test.fail("streaming reader failed")
+  }
+}
+
+///|
+test "streaming empty stream is valid" {
+  let writer = @lib.XzWriter::new()
+  let tail = writer.finish()
+  let reader = @lib.XzReader::new(tail)
+  @test.assert_eq(reader.read_block(), None)
+  @test.assert_eq(@lib.decompress(tail), b"")
+}
+
+///|
+test "streaming reader enforces output limit" {
+  let writer = @lib.XzWriter::new()
+  let encoded = writer.write(b"0123456789") + writer.finish()
+  let reader = @lib.XzReader::new(encoded, max_output=4)
+  try {
+    let _ = reader.read_block()
+    @test.fail("expected OutputLimitExceeded")
+  } catch {
+    @lib.OutputLimitExceeded(_) => ()
+    _ => @test.fail("unexpected error")
+  }
 }
 
 ///|

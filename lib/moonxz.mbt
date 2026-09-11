@@ -1,8 +1,17 @@
 ///|
+/// Optional filter placed before LZMA2 in an XZ block.
+pub(all) enum FilterMode {
+  None
+  Delta(Int)
+  X86
+}
+
+///|
 /// Compression parameters for the LZMA2 encoder.
 pub(all) struct CompressionOptions {
   level : Int
   dict_size : Int
+  filter : FilterMode
 }
 
 ///|
@@ -14,6 +23,7 @@ pub(all) struct CompressionOptions {
 pub fn CompressionOptions::new(
   level? : Int = 6,
   dict_size? : Int = 8 * 1024 * 1024,
+  filter? : FilterMode = None,
 ) -> CompressionOptions {
   let level = if level < 0 { 0 } else if level > 9 { 9 } else { level }
   let dict_size = if dict_size < 4096 {
@@ -23,7 +33,7 @@ pub fn CompressionOptions::new(
   } else {
     dict_size
   }
-  { level, dict_size, }
+  { level, dict_size, filter, }
 }
 
 ///|

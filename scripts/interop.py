@@ -9,6 +9,8 @@ from __future__ import annotations
 import lzma
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 
 def run_cli(*args: str) -> str:
@@ -47,6 +49,49 @@ def main() -> int:
         if decoded != payload:
             print(f"Python -> MoonXZ failed for {check_name}", file=sys.stderr)
             return 1
+
+    filter_cases = [
+        (
+            "delta",
+            [{"id": lzma.FILTER_DELTA, "dist": 1}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
+            bytes(range(256)) * 20,
+        ),
+        (
+            "x86",
+            [{"id": lzma.FILTER_X86}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
+            bytes.fromhex("e800000000e9fbffffff90e801000000c3"),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for filter_name, filters, filter_payload in filter_cases:
+            source = root / f"{filter_name}.bin"
+            encoded = root / f"{filter_name}.xz"
+            restored = root / f"{filter_name}.restored"
+            source.write_bytes(filter_payload)
+
+            run_cli(
+                "compress-file",
+                str(source),
+                str(encoded),
+                "sha256",
+                filter_name,
+            )
+            if lzma.decompress(encoded.read_bytes()) != filter_payload:
+                print(f"MoonXZ -> Python failed for {filter_name}", file=sys.stderr)
+                return 1
+
+            encoded.write_bytes(
+                lzma.compress(
+                    filter_payload,
+                    format=lzma.FORMAT_XZ,
+                    filters=filters,
+                )
+            )
+            run_cli("decompress-file", str(encoded), str(restored))
+            if restored.read_bytes() != filter_payload:
+                print(f"Python -> MoonXZ failed for {filter_name}", file=sys.stderr)
+                return 1
 
     print("MoonXZ interoperability: ok")
     return 0
