@@ -1,15 +1,19 @@
 ///|
 fn usage() -> Unit {
-  println("MoonXZ 0.3.0")
+  println("MoonXZ 0.4.0")
   println("usage:")
   println("  moonxz demo")
   println("  moonxz compress <hex> [none|crc32|crc64|sha256]")
   println("  moonxz decompress <hex>")
   println("  moonxz roundtrip <hex>")
+  println("  moonxz lzma-decompress <hex>")
+  println("  moonxz lzma-roundtrip <hex>")
   println(
-    "  moonxz compress-file <input> <output> [none|crc32|crc64|sha256] [none|x86|delta]",
+    "  moonxz compress-file <input> <output> [none|crc32|crc64|sha256] [none|x86|arm|arm64|powerpc|sparc|delta]",
   )
   println("  moonxz decompress-file <input> <output>")
+  println("  moonxz lzma-compress-file <input> <output>")
+  println("  moonxz lzma-decompress-file <input> <output>")
 }
 
 ///|
@@ -37,14 +41,14 @@ fn parse_check(name : String) -> @moonxz.CheckKind? {
 
 ///|
 fn parse_filter(name : String) -> @moonxz.FilterMode? {
-  if name == "none" {
-    Some(@moonxz.FilterMode::None)
-  } else if name == "x86" {
-    Some(@moonxz.FilterMode::X86)
-  } else if name == "delta" {
-    Some(@moonxz.FilterMode::Delta(1))
-  } else {
-    None
+  match name {
+    "none" => Some(@moonxz.FilterMode::None)
+    "x86" => Some(@moonxz.FilterMode::X86)
+    "arm" => Some(@moonxz.FilterMode::Arm)
+    "arm64" => Some(@moonxz.FilterMode::Arm64)
+    "sparc" => Some(@moonxz.FilterMode::Sparc)
+    "delta" => Some(@moonxz.FilterMode::Delta(1))
+    _ => None
   }
 }
 
@@ -71,6 +75,47 @@ fn run_roundtrip(hex : String) -> Unit raise {
   let input = @hex.decode(hex)
   let decoded = @moonxz.decompress(@moonxz.compress(input))
   println(if decoded == input { "true" } else { "false" })
+}
+
+///|
+fn run_lzma_decompress(hex : String) -> Unit raise {
+  let input = @hex.decode(hex)
+  let decoded = @moonxz.decompress_lzma1(input)
+  println(@hex.encode(decoded))
+}
+
+///|
+fn run_lzma_roundtrip(hex : String) -> Unit raise {
+  let input = @hex.decode(hex)
+  let encoded = @moonxz.compress_lzma1(input)
+  let decoded = @moonxz.decompress_lzma1(encoded)
+  println(if decoded == input { "true" } else { "false" })
+}
+
+///|
+fn run_lzma_compress_file(
+  input_path : String,
+  output_path : String,
+) -> Unit raise {
+  let input = @fs.read_file_to_bytes(input_path)
+  let output = @moonxz.compress_lzma1(input)
+  @fs.write_bytes_to_file(output_path, output)
+  println(
+    "lzma-compressed input_bytes=\{input.length()} output_bytes=\{output.length()}",
+  )
+}
+
+///|
+fn run_lzma_decompress_file(
+  input_path : String,
+  output_path : String,
+) -> Unit raise {
+  let input = @fs.read_file_to_bytes(input_path)
+  let decoded = @moonxz.decompress_lzma1(input)
+  @fs.write_bytes_to_file(output_path, decoded)
+  println(
+    "lzma-decompressed input_bytes=\{input.length()} output_bytes=\{decoded.length()}",
+  )
 }
 
 ///|
@@ -134,6 +179,12 @@ fn main {
       "compress" if args.length() == 4 => run_compress(args[2], args[3])
       "decompress" if args.length() == 3 => run_decompress(args[2])
       "roundtrip" if args.length() == 3 => run_roundtrip(args[2])
+      "lzma-decompress" if args.length() == 3 => run_lzma_decompress(args[2])
+      "lzma-roundtrip" if args.length() == 3 => run_lzma_roundtrip(args[2])
+      "lzma-compress-file" if args.length() == 4 =>
+        run_lzma_compress_file(args[2], args[3])
+      "lzma-decompress-file" if args.length() == 4 =>
+        run_lzma_decompress_file(args[2], args[3])
       "compress-file" if args.length() == 4 =>
         run_compress_file(args[2], args[3], "crc64", "none")
       "compress-file" if args.length() == 5 =>

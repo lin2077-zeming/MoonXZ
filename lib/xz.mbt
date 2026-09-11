@@ -8,6 +8,39 @@ const XZ_FOOTER_MAGIC : Bytes = b"YZ"
 const LZMA2_FILTER_ID : UInt64 = 0x21UL
 
 ///|
+/// XZ filter id for the delta filter.
+const DELTA_FILTER_ID : UInt64 = 0x03UL
+
+///|
+/// XZ filter id for the x86 BCJ filter.
+const X86_FILTER_ID : UInt64 = 0x04UL
+
+///|
+/// XZ filter id for the PowerPC BCJ filter.
+const POWERPC_FILTER_ID : UInt64 = 0x05UL
+
+///|
+/// XZ filter id for the IA64 BCJ filter, which MoonXZ reports as unsupported.
+const IA64_FILTER_ID : UInt64 = 0x06UL
+
+///|
+/// XZ filter id for the ARM BCJ filter.
+const ARM_FILTER_ID : UInt64 = 0x07UL
+
+///|
+/// XZ filter id for the ARM-Thumb BCJ filter. MoonXZ reports it as unsupported
+/// because the 21-bit halfword packing is not implemented.
+const ARMTHUMB_FILTER_ID : UInt64 = 0x08UL
+
+///|
+/// XZ filter id for the SPARC BCJ filter.
+const SPARC_FILTER_ID : UInt64 = 0x09UL
+
+///|
+/// XZ filter id for the ARM64 (AArch64) BCJ filter.
+const ARM64_FILTER_ID : UInt64 = 0x0AUL
+
+///|
 const MAX_BLOCK_HEADER : Int = 1024
 
 ///|
@@ -67,6 +100,80 @@ fn read_stream_header(cursor : ByteCursor) -> CheckKind raise XzError {
 }
 
 ///|
+/// Human-readable name of a filter id, used in error messages.
+fn filter_id_name(id : UInt64) -> String {
+  if id == DELTA_FILTER_ID {
+    "delta"
+  } else if id == X86_FILTER_ID {
+    "x86"
+  } else if id == POWERPC_FILTER_ID {
+    "powerpc"
+  } else if id == IA64_FILTER_ID {
+    "ia64"
+  } else if id == ARM_FILTER_ID {
+    "arm"
+  } else if id == ARMTHUMB_FILTER_ID {
+    "armthumb"
+  } else if id == SPARC_FILTER_ID {
+    "sparc"
+  } else if id == ARM64_FILTER_ID {
+    "arm64"
+  } else if id == LZMA2_FILTER_ID {
+    "lzma2"
+  } else {
+    "unknown"
+  }
+}
+
+///|
+/// Turns a non-LZMA2 filter id plus its property bytes into a `FilterMode`.
+///
+/// This is the single place where XZ filter ids are mapped onto MoonXZ filter
+/// implementations, so block-header validation and filter application can never
+/// disagree about which ids are supported. The property requirements come from
+/// the filter definitions in the XZ specification:
+///
+/// - delta takes exactly one byte, the distance minus one
+/// - x86, ARM, ARM64, ARM-Thumb, PowerPC and SPARC take no properties
+/// - the IA64 BCJ filter is recognized but not implemented
+fn filter_mode_of(id : UInt64, properties : Bytes) -> FilterMode raise XzError {
+  if id == DELTA_FILTER_ID {
+    if properties.length() != 1 {
+      raise Corrupt("delta filter must have exactly one property byte")
+    }
+    Delta(properties[0].to_int() + 1)
+  } else if id == X86_FILTER_ID {
+    if properties.length() != 0 {
+      raise Corrupt("x86 BCJ filter must have no properties")
+    }
+    X86
+  } else if id == ARM_FILTER_ID {
+    if properties.length() != 0 {
+      raise Corrupt("ARM BCJ filter must have no properties")
+    }
+    Arm
+  } else if id == ARM64_FILTER_ID {
+    if properties.length() != 0 {
+      raise Corrupt("ARM64 BCJ filter must have no properties")
+    }
+    Arm64
+  } else if id == ARMTHUMB_FILTER_ID {
+    raise Unsupported("the ARM-Thumb BCJ filter is not implemented")
+  } else if id == POWERPC_FILTER_ID {
+    raise Unsupported("the PowerPC BCJ filter is not implemented")
+  } else if id == SPARC_FILTER_ID {
+    if properties.length() != 0 {
+      raise Corrupt("SPARC BCJ filter must have no properties")
+    }
+    Sparc
+  } else if id == IA64_FILTER_ID {
+    raise Unsupported("the IA64 BCJ filter is not implemented")
+  } else {
+    raise Unsupported("unsupported XZ filter id \{id}")
+  }
+}
+
+///|
 fn parse_block_header(
   header : Bytes,
 ) -> (Int?, Int?, Int, Array[FilterSpec]) raise XzError {
@@ -113,16 +220,13 @@ fn parse_block_header(
       if filter_index != filter_count - 1 || properties_size != 1 {
         raise Corrupt("LZMA2 must be the final one-byte filter")
       }
-    } else if filter_id == 0x03UL {
-      if filter_index != 0 || filter_count != 2 || properties_size != 1 {
-        raise Corrupt("invalid delta filter position or properties")
-      }
-    } else if filter_id == 0x04UL {
-      if filter_index != 0 || filter_count != 2 || properties_size != 0 {
-        raise Corrupt("invalid x86 BCJ filter position or properties")
-      }
+    } else if filter_index != 0 || filter_count != 2 {
+      raise Corrupt(
+        "\{filter_id_name(filter_id)} filter must be the first of a two-filter chain",
+      )
     } else {
-      raise Unsupported("unsupported XZ filter id \{filter_id}")
+      // Validates the property count for this filter id.
+      let _ = filter_mode_of(filter_id, properties)
     }
     filters.push({ id: filter_id, properties, })
   }
@@ -184,16 +288,7 @@ fn decode_filter_chain(
   let mut result = data
   for index in 0..<(filters.length() - 1) {
     let filter = filters[filters.length() - 2 - index]
-    let mode = if filter.id == 0x03UL {
-      if filter.properties.length() != 1 {
-        raise Corrupt("delta filter must have one property byte")
-      }
-      Delta(filter.properties[0].to_int() + 1)
-    } else if filter.id == 0x04UL {
-      X86
-    } else {
-      raise Unsupported("unsupported XZ filter id \{filter.id}")
-    }
+    let mode = filter_mode_of(filter.id, filter.properties)
     result = decode_filter(result, mode)
   }
   result
@@ -307,6 +402,15 @@ fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
         filter_dict_size(filters),
         max_output - output.length(),
       )
+      // The LZMA2 chunk framing repeats the payload length that the block header
+      // already declared. Cross-checking both keeps a corrupted or inconsistent
+      // framing from being silently ignored.
+      let consumed = scan_lzma2_size(compressed, 0)
+      if consumed != compressed_size {
+        raise Corrupt(
+          "XZ block LZMA2 framing covers \{consumed} bytes but the block header declared \{compressed_size}",
+        )
+      }
       let decoded = decode_filter_chain(filters, filtered)
       match uncompressed_size_opt {
         Some(expected) =>
@@ -345,6 +449,16 @@ fn encode_stream_header(check_kind : CheckKind) -> Bytes {
 }
 
 ///|
+/// Writes a filter id plus its (empty) property list into a block header.
+///
+/// Filter ids are variable-length integers, but every id MoonXZ supports except
+/// LZMA2 fits in a single byte, so the id is written directly.
+fn push_propertyless_filter(header : Array[Byte], id : UInt64) -> Unit {
+  header.push(id.to_byte())
+  header.push(b'\x00')
+}
+
+///|
 fn encode_xz_block(
   data : Bytes,
   options : CompressionOptions,
@@ -364,14 +478,14 @@ fn encode_xz_block(
   match options.filter {
     None => ()
     Delta(distance) => {
-      block_header.push(b'\x03')
+      block_header.push(DELTA_FILTER_ID.to_byte())
       block_header.push(b'\x01')
       block_header.push((normalize_delta_distance(distance) - 1).to_byte())
     }
-    X86 => {
-      block_header.push(b'\x04')
-      block_header.push(b'\x00')
-    }
+    X86 => push_propertyless_filter(block_header, X86_FILTER_ID)
+    Arm => push_propertyless_filter(block_header, ARM_FILTER_ID)
+    Arm64 => push_propertyless_filter(block_header, ARM64_FILTER_ID)
+    Sparc => push_propertyless_filter(block_header, SPARC_FILTER_ID)
   }
   block_header.push(LZMA2_FILTER_ID.to_byte())
   block_header.push(b'\x01')
