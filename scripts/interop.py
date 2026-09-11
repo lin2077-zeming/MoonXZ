@@ -59,7 +59,17 @@ def main() -> int:
         (
             "x86",
             [{"id": lzma.FILTER_X86}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
-            bytes.fromhex("e800000000e9fbffffff90e801000000c3"),
+            bytes.fromhex("e800000000e9fbffffff90e801000000c3") + bytes(100),
+        ),
+        (
+            "arm",
+            [{"id": lzma.FILTER_ARM}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
+            bytes.fromhex("000000eb000000eb040000ebffffffea") + bytes(100),
+        ),
+        (
+            "sparc",
+            [{"id": lzma.FILTER_SPARC}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
+            bytes.fromhex("40000001400000054000000901000000") + bytes(100),
         ),
     ]
     with tempfile.TemporaryDirectory() as directory:
@@ -93,8 +103,53 @@ def main() -> int:
                 print(f"Python -> MoonXZ failed for {filter_name}", file=sys.stderr)
                 return 1
 
+    # Legacy LZMA-alone: both header forms, in both directions.
+    legacy_cases = [
+        (
+            "alone-sized",
+            lzma.compress(payload, format=lzma.FORMAT_ALONE),
+        ),
+        (
+            "alone-end-marker",
+            _alone_with_end_marker(payload),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for name, encoded_bytes in legacy_cases:
+            encoded = root / f"{name}.lzma"
+            restored = root / f"{name}.restored"
+            encoded.write_bytes(encoded_bytes)
+
+            run_cli("lzma-decompress-file", str(encoded), str(restored))
+            if restored.read_bytes() != payload:
+                print(f"Python -> MoonXZ failed for {name}", file=sys.stderr)
+                return 1
+
+            source = root / f"{name}.bin"
+            source.write_bytes(payload)
+            produced = root / f"{name}.produced.lzma"
+            run_cli("lzma-compress-file", str(source), str(produced))
+            if lzma.decompress(produced.read_bytes()) != payload:
+                print(f"MoonXZ -> Python failed for {name}", file=sys.stderr)
+                return 1
+
     print("MoonXZ interoperability: ok")
     return 0
+
+
+def _alone_with_end_marker(payload: bytes) -> bytes:
+    """Builds a `.lzma` stream that records the unknown-size sentinel.
+
+    The one-shot API records the exact size, so the streaming API is used to get
+    a stream terminated by the end marker instead.
+    """
+    import io
+
+    buffer = io.BytesIO()
+    with lzma.open(buffer, "wb", format=lzma.FORMAT_ALONE) as handle:
+        handle.write(payload)
+    return buffer.getvalue()
 
 
 if __name__ == "__main__":
