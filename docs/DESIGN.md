@@ -11,6 +11,7 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 1. 先把标准 XZ 容器和 LZMA2 压缩块解码做正确。
 2. 编码端先建立规范兼容的未压缩 LZMA2 块，随后加入 range encoder。
 3. 使用 hash chain match finder 生成 literal 和普通 match，逐步完善压缩率。
+4. 在 block 层增加 delta/x86 BCJ filter，并提供流式读写和文件 CLI。
 
 ## 分层
 
@@ -22,7 +23,7 @@ wasm、wasm-gc、js 和 native 目标上运行的库。
 - block header 的 flags、VLI、filter 和 padding 解析
 - block 数据、block padding 和 block check 的定位
 - 多 block、拼接 stream 和四字节 stream padding
-- 存储式 XZ 写入
+- block filter chain 解析与写入
 
 ### LZMA2
 
@@ -56,6 +57,22 @@ direct bits 和正反向 bit tree。
 `lib/lzma_encoder.mbt` 编码 literal、length 和 distance，并维护与解码器
 一致的状态转换和概率模型。
 
+### Filter
+
+`lib/filters.mbt` 实现 XZ delta 和 x86 BCJ filter。解码时按 XZ 规则反向
+应用 filter chain，编码时在 LZMA2 前正向应用。当前支持一个可选 filter
+加 LZMA2 的两级 chain。
+
+### Streaming 和 CLI
+
+`lib/streaming.mbt` 提供按 block 工作的 `XzWriter` 和 `XzReader`。
+`XzWriter` 每次 `write` 产生一个完整 block，`finish` 产生 index 和
+footer；`XzReader` 每次 `read_block` 返回一个已校验和过滤的 block。
+
+`cmd/main` 提供十六进制命令和文件命令。文件命令使用
+`moonbitlang/x/fs`，但库包本身不依赖它，仍可在 wasm、wasm-gc、js 和
+native 目标中使用。
+
 ### 校验
 
 `lib/check.mbt` 实现 XZ 支持的四类 check：
@@ -83,18 +100,12 @@ direct bits 和正反向 bit tree。
 
 ## 后续路线
 
-### 0.3.0
-
-- delta filter
-- x86 BCJ filter
-- 文件 CLI
-- 流式 reader / writer
-
 ### 0.4.0
 
 - 更细的错误定位
 - 更完整的损坏输入测试集
 - 压缩率基准和性能基准
+- 更多 BCJ 架构和更完整的 filter chain
 
 ## 许可证策略
 

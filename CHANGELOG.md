@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- 实现 delta filter 和 x86 BCJ filter
+- 实现流式 `XzWriter` 和 `XzReader`
+- 增加 `compress-file` 和 `decompress-file` 文件 CLI
+- 增加 delta/x86 标准向量、流式多 block 和文件绕回测试
+- CLI 引入 `moonbitlang/x/fs`，库包仍保持无文件系统依赖
+
 ## 0.2.0
 
 - 实现 LZMA range encoder

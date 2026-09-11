@@ -19,3 +19,14 @@ No Go source file is copied verbatim into this repository. The MoonBit code
 uses different data structures and APIs and adds its own error model, bounds
 checks, tests, and build configuration. This notice is retained to satisfy
 attribution and license obligations for the referenced implementation.
+
+## moonbitlang/x
+
+The file CLI uses:
+
+- Project: `moonbitlang/x`
+- Source: https://github.com/moonbitlang/x
+- License: Apache-2.0
+
+This dependency is only used by `cmd/main`; the `lib` package does not depend
+on the file system or on this module.
