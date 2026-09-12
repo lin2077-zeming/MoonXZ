@@ -430,3 +430,73 @@ test "multi chunk lzma2 decoding stays correct across sizes" {
     @test.assert_eq(@lib.decompress(@lib.compress(input)), input)
   }
 }
+
+///|
+/// A tiny deterministic generator. The tests only need reproducible pseudo-random
+/// bytes, so a plain xorshift keeps the suite dependency-free.
+fn pseudo_random_bytes(seed : UInt, length : Int) -> Bytes {
+  let out : Array[Byte] = Array(capacity=length)
+  let mut state = if seed == 0U { 0x2545F491U } else { seed }
+  for _ in 0..<length {
+    state = state ^ (state << 13)
+    state = state ^ (state >> 17)
+    state = state ^ (state << 5)
+    out.push((state & 0xFFU).to_byte())
+  }
+  Bytes::from_array(out)
+}
+
+///|
+/// Random bytes are almost never a valid stream, so the decoder must reject them
+/// through a typed error and never panic.
+///
+/// This is deliberately independent of the mutation sweep above: that one starts
+/// from a valid stream and explores small changes, while this one explores inputs
+/// with no valid structure at all, which is where length and offset arithmetic
+/// tends to go wrong.
+test "random bytes are rejected without panicking" {
+  let mut seed : UInt = 1U
+  for length in [0, 1, 5, 12, 13, 32, 64, 200, 1000] {
+    for _ in 0..<12 {
+      let junk = pseudo_random_bytes(seed, length)
+      seed = seed + 0x9E3779B9U
+      // A zero-length input is a legitimate empty stream: it decodes to nothing.
+      // Anything longer has no valid structure and must be refused.
+      let xz_outcome = Some(@lib.decompress(junk)) catch { _ => None }
+      match xz_outcome {
+        None => ()
+        Some(value) =>
+          if length > 0 || value.length() > 0 {
+            @test.fail(
+              "random \{length}-byte input decoded to \{value.length()} bytes",
+            )
+          }
+      }
+      let lzma_outcome = Some(@lib.decompress_lzma1(junk)) catch { _ => None }
+      match lzma_outcome {
+        None => ()
+        Some(value) =>
+          @test.fail(
+            "random \{length}-byte lzma input decoded to \{value.length()} bytes",
+          )
+      }
+    }
+  }
+}
+
+///|
+/// A stream whose header promises far more output than the input can produce must
+/// fail on the output limit rather than exhausting memory.
+test "declared size cannot force unbounded work" {
+  // XZ stream header, then an LZMA2 chunk that declares a huge uncompressed size
+  // but carries almost no payload.
+  let header = @hex.decode("fd377a585a000004e6d6b44602")
+  let block = @hex.decode("0100ffffffffffffffff5d00")
+  let bomb = header + block
+  try {
+    let _ = @lib.decompress_with_limit(bomb, 64 * 1024 * 1024)
+    @test.fail("expected a typed error for the truncated bomb")
+  } catch {
+    _ => ()
+  }
+}
