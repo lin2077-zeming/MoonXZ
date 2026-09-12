@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- **安全修复**：撤回 ARM、ARM64、SPARC 三个 BCJ filter。它们在特定字上地址运算
+  溢出，编码后再解码无法还原原文，会静默损坏数据；`liblzma` 也会拒绝 MoonXZ
+  写出的流。`0.4.0` 包含这三个 filter，请勿使用该版本处理需要 ARM/ARM64/SPARC
+  filter 的数据
+- 这三个 filter id 现在返回 `Unsupported`
+- 新增"全 filter × 长度 × 内容形态"矩阵回归测试（4 × 19 × 5）
+
 ## 0.4.0
 
 - 新增 LZMA1 / `.lzma` 旧格式解码：13 字节头解析、已声明大小与 EOS 标记两种
