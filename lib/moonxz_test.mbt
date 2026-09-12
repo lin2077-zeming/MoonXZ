@@ -432,6 +432,32 @@ test "multi chunk lzma2 decoding stays correct across sizes" {
 }
 
 ///|
+/// Matches that reach across a 64 KiB chunk boundary exercise the LZMA2
+/// dictionary rules: a later chunk may keep the previous dictionary, while a
+/// chunk that resets it may not.
+///
+/// A naive `"A" * n` input does not cover this, because all of its matches are at
+/// distance 1, which is valid under every dictionary rule.
+test "matches spanning chunk boundaries round trip" {
+  // A one-off 70000-byte period repeated twice. Every long match is between the
+  // two halves, at a distance larger than one chunk.
+  let period = pseudo_random_bytes(0x5EEDU, 70000)
+  let straddling = period + period
+  @test.assert_eq(@lib.decompress(@lib.compress(straddling)), straddling)
+
+  // A short period repeated far past the boundary, so matches cross many chunks.
+  let repeated = pseudo_random_bytes(0xC0FFEEU, 100)
+  let many = Bytes::repeat(repeated, 1400)
+  @test.assert_eq(@lib.decompress(@lib.compress(many)), many)
+
+  // Compressible regions on both sides of a boundary, with incompressible data
+  // between them.
+  let noise = pseudo_random_bytes(0xBEEFU, 200)
+  let mixed = Bytes::make(65530, b'A') + noise + Bytes::make(65530, b'A')
+  @test.assert_eq(@lib.decompress(@lib.compress(mixed)), mixed)
+}
+
+///|
 /// A tiny deterministic generator. The tests only need reproducible pseudo-random
 /// bytes, so a plain xorshift keeps the suite dependency-free.
 fn pseudo_random_bytes(seed : UInt, length : Int) -> Bytes {

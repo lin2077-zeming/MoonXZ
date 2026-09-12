@@ -50,6 +50,34 @@ def main() -> int:
             print(f"Python -> MoonXZ failed for {check_name}", file=sys.stderr)
             return 1
 
+    # Multi-chunk inputs, where matches reach across the 64 KiB LZMA2 boundary and
+    # a later chunk keeps the previous dictionary. A naive repeated-byte payload
+    # would only ever produce distance-1 matches and miss this path.
+    period = bytes((i * 7 + 13) & 0xFF for i in range(70000))
+    multi_chunk = [
+        ("straddling-period", period + period),
+        ("short-period", bytes(range(100)) * 1400),
+        (
+            "mixed-compressibility",
+            bytes(65530) + bytes((i * 31 + 5) & 0xFF for i in range(200)) + bytes(65530),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for name, data in multi_chunk:
+            source = root / f"{name}.bin"
+            encoded = root / f"{name}.xz"
+            restored = root / f"{name}.restored"
+            source.write_bytes(data)
+            run_cli("compress-file", str(source), str(encoded), "crc64", "none")
+            if lzma.decompress(encoded.read_bytes()) != data:
+                print(f"MoonXZ -> Python failed for {name}", file=sys.stderr)
+                return 1
+            run_cli("decompress-file", str(encoded), str(restored))
+            if restored.read_bytes() != data:
+                print(f"MoonXZ self round trip failed for {name}", file=sys.stderr)
+                return 1
+
     filter_cases = [
         (
             "delta",
