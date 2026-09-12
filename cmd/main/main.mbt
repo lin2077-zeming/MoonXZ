@@ -9,7 +9,7 @@ fn usage() -> Unit {
   println("  moonxz lzma-decompress <hex>")
   println("  moonxz lzma-roundtrip <hex>")
   println(
-    "  moonxz compress-file <input> <output> [none|crc32|crc64|sha256] [none|x86|arm|arm64|powerpc|sparc|delta]",
+    "  moonxz compress-file <input> <output> [none|crc32|crc64|sha256] [none|x86|delta]",
   )
   println("  moonxz decompress-file <input> <output>")
   println("  moonxz lzma-compress-file <input> <output>")
@@ -40,13 +40,12 @@ fn parse_check(name : String) -> @moonxz.CheckKind? {
 }
 
 ///|
+/// Parses a filter name. Only the filters MoonXZ implements are accepted; the
+/// rest are reported as unknown so the CLI never implies support it does not have.
 fn parse_filter(name : String) -> @moonxz.FilterMode? {
   match name {
     "none" => Some(@moonxz.FilterMode::None)
     "x86" => Some(@moonxz.FilterMode::X86)
-    "arm" => Some(@moonxz.FilterMode::Arm)
-    "arm64" => Some(@moonxz.FilterMode::Arm64)
-    "sparc" => Some(@moonxz.FilterMode::Sparc)
     "delta" => Some(@moonxz.FilterMode::Delta(1))
     _ => None
   }

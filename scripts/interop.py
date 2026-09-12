@@ -89,16 +89,6 @@ def main() -> int:
             [{"id": lzma.FILTER_X86}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
             bytes.fromhex("e800000000e9fbffffff90e801000000c3") + bytes(100),
         ),
-        (
-            "arm",
-            [{"id": lzma.FILTER_ARM}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
-            bytes.fromhex("000000eb000000eb040000ebffffffea") + bytes(100),
-        ),
-        (
-            "sparc",
-            [{"id": lzma.FILTER_SPARC}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
-            bytes.fromhex("40000001400000054000000901000000") + bytes(100),
-        ),
     ]
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -129,6 +119,41 @@ def main() -> int:
             run_cli("decompress-file", str(encoded), str(restored))
             if restored.read_bytes() != filter_payload:
                 print(f"Python -> MoonXZ failed for {filter_name}", file=sys.stderr)
+                return 1
+
+    # Filters MoonXZ deliberately refuses must be refused, not approximated: a
+    # BCJ filter with wrong address arithmetic corrupts data silently.
+    refused = [
+        ("arm", lzma.FILTER_ARM),
+        ("powerpc", lzma.FILTER_POWERPC),
+        ("sparc", lzma.FILTER_SPARC),
+        ("armthumb", lzma.FILTER_ARMTHUMB),
+    ]
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        payload = bytes.fromhex("000000eb000000eb040000ebffffffea") + bytes(100)
+        for name, filter_id in refused:
+            encoded = root / f"refused_{name}.xz"
+            encoded.write_bytes(
+                lzma.compress(
+                    payload,
+                    format=lzma.FORMAT_XZ,
+                    check=lzma.CHECK_CRC64,
+                    filters=[{"id": filter_id}, {"id": lzma.FILTER_LZMA2, "preset": 6}],
+                )
+            )
+            result = subprocess.run(
+                ["moon", "run", "-q", "cmd/main", "--", "decompress-file",
+                 str(encoded), str(root / "refused.out")],
+                capture_output=True,
+                text=True,
+            )
+            combined = result.stdout + result.stderr
+            if "Unsupported" not in combined:
+                print(
+                    f"expected Unsupported for refused filter {name}, got: {combined.strip()[:120]}",
+                    file=sys.stderr,
+                )
                 return 1
 
     # Legacy LZMA-alone: both header forms, in both directions.

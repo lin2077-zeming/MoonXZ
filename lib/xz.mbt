@@ -134,8 +134,8 @@ fn filter_id_name(id : UInt64) -> String {
 /// the filter definitions in the XZ specification:
 ///
 /// - delta takes exactly one byte, the distance minus one
-/// - x86, ARM, ARM64, ARM-Thumb, PowerPC and SPARC take no properties
-/// - the IA64 BCJ filter is recognized but not implemented
+/// - x86 takes no properties
+/// - every other BCJ id is recognized but reported as `Unsupported`
 fn filter_mode_of(id : UInt64, properties : Bytes) -> FilterMode raise XzError {
   if id == DELTA_FILTER_ID {
     if properties.length() != 1 {
@@ -148,24 +148,15 @@ fn filter_mode_of(id : UInt64, properties : Bytes) -> FilterMode raise XzError {
     }
     X86
   } else if id == ARM_FILTER_ID {
-    if properties.length() != 0 {
-      raise Corrupt("ARM BCJ filter must have no properties")
-    }
-    Arm
+    raise Unsupported("the ARM BCJ filter is not implemented")
   } else if id == ARM64_FILTER_ID {
-    if properties.length() != 0 {
-      raise Corrupt("ARM64 BCJ filter must have no properties")
-    }
-    Arm64
+    raise Unsupported("the ARM64 BCJ filter is not implemented")
   } else if id == ARMTHUMB_FILTER_ID {
     raise Unsupported("the ARM-Thumb BCJ filter is not implemented")
   } else if id == POWERPC_FILTER_ID {
     raise Unsupported("the PowerPC BCJ filter is not implemented")
   } else if id == SPARC_FILTER_ID {
-    if properties.length() != 0 {
-      raise Corrupt("SPARC BCJ filter must have no properties")
-    }
-    Sparc
+    raise Unsupported("the SPARC BCJ filter is not implemented")
   } else if id == IA64_FILTER_ID {
     raise Unsupported("the IA64 BCJ filter is not implemented")
   } else {
@@ -483,9 +474,6 @@ fn encode_xz_block(
       block_header.push((normalize_delta_distance(distance) - 1).to_byte())
     }
     X86 => push_propertyless_filter(block_header, X86_FILTER_ID)
-    Arm => push_propertyless_filter(block_header, ARM_FILTER_ID)
-    Arm64 => push_propertyless_filter(block_header, ARM64_FILTER_ID)
-    Sparc => push_propertyless_filter(block_header, SPARC_FILTER_ID)
   }
   block_header.push(LZMA2_FILTER_ID.to_byte())
   block_header.push(b'\x01')

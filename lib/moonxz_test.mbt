@@ -125,33 +125,32 @@ test "decode Python x86 BCJ fixture" {
 }
 
 ///|
-/// The BCJ fixtures below were produced by Python 3.14 `liblzma`, which is the
-/// same C implementation `xz-utils` uses. Each input starts with a few real
-/// branch instructions and is padded, because `liblzma` skips the BCJ filter
-/// entirely for inputs that are too short to contain a branch.
+/// The x86 BCJ fixture below was produced by Python 3.14 `liblzma`, the same C
+/// implementation `xz-utils` uses. The input starts with real branch
+/// instructions and is padded, because `liblzma` skips the BCJ filter entirely
+/// for inputs too short to contain a branch.
 fn bcj_padding() -> Bytes {
   Bytes::make(60, b'\x00')
 }
 
 ///|
-test "decode Python ARM BCJ fixture" {
-  let fixture = @hex.decode(
-    "fd377a585a000004e6d6b4460201070021011600a3f4a199e0004b00125d00010036114848dd5fb2ced1b14e74a30090000000000daf6ece7d4a1c1f00012e4cbcb1eb541fb6f37d010000000004595a",
-  )
-  let expected = @hex.decode("000000eb000000eb040000ebffffffea") + bcj_padding()
-  @test.assert_eq(@lib.decompress(fixture), expected)
-}
-
-///|
-/// The ARM-Thumb, PowerPC and IA64 BCJ filters are defined by the XZ
-/// specification but are not implemented, so a block that uses one must be
-/// refused rather than decoded to wrong bytes.
+/// ARM, ARM64, ARM-Thumb, PowerPC, SPARC and IA64 are all defined by the XZ
+/// specification but are not shipped, so a block that uses one must be refused
+/// rather than decoded to wrong bytes.
+///
+/// These ids were implemented and withdrawn. They either could not be aligned
+/// with liblzma or silently corrupted data on inputs outside the test set, so the
+/// only safe behaviour is a loud `Unsupported`. See `docs/DESIGN.md`.
 test "unimplemented BCJ filters are reported as unsupported" {
   let fixtures : Array[String] = [
+    // ARM (filter id 0x07)
+    "fd377a585a000004e6d6b4460201070021011600a3f4a199e0004b00125d00010036114848dd5fb2ced1b14e74a30090000000000daf6ece7d4a1c1f00012e4cbcb1eb541fb6f37d010000000004595a",
     // ARM-Thumb (filter id 0x08)
-    "fd377a585a000004e6d6b44602010800210116007646f76801001300f002f802f008f800f006f800bf00000000000000114951785f6bf4bb00012c14f80a6d031fb6f37d010000000004595a",
+     "fd377a585a000004e6d6b44602010800210116007646f76801001300f002f802f008f800f006f800bf00000000000000114951785f6bf4bb00012c14f80a6d031fb6f37d010000000004595a",
     // PowerPC (filter id 0x05)
      "fd377a585a000004e6d6b4460201050021011600a85569d4e00073000f5d0024002c030860b51ec5d45a4712a000000012a8ef35201abcf500012b7467fd9e011fb6f37d010000000004595a",
+    // SPARC (filter id 0x09)
+     "fd377a585a000004e6d6b4460201090021011600d395aba3e0004b000f5d0020002c0308607fe1714cd80caa8000000037f736463f2dbd1800012b4cf9459c291fb6f37d010000000004595a",
   ]
   for fixture in fixtures {
     try {
@@ -162,15 +161,6 @@ test "unimplemented BCJ filters are reported as unsupported" {
       _ => @test.fail("expected Unsupported for an unimplemented BCJ filter")
     }
   }
-}
-
-///|
-test "decode Python SPARC BCJ fixture" {
-  let fixture = @hex.decode(
-    "fd377a585a000004e6d6b4460201090021011600d395aba3e0004b000f5d0020002c0308607fe1714cd80caa8000000037f736463f2dbd1800012b4cf9459c291fb6f37d010000000004595a",
-  )
-  let expected = @hex.decode("40000001400000054000000901000000") + bcj_padding()
-  @test.assert_eq(@lib.decompress(fixture), expected)
 }
 
 ///|
@@ -524,5 +514,63 @@ test "declared size cannot force unbounded work" {
     @test.fail("expected a typed error for the truncated bomb")
   } catch {
     _ => ()
+  }
+}
+
+///|
+/// Repeats `unit` until exactly `length` bytes are produced.
+fn repeat_to_length(unit : Bytes, length : Int) -> Bytes {
+  let out : Array[Byte] = []
+  if unit.length() == 0 {
+    return Bytes::make(length, b'\x00')
+  }
+  while out.length() < length {
+    for byte in unit {
+      if out.length() < length {
+        out.push(byte)
+      }
+    }
+  }
+  Bytes::from_array(out)
+}
+
+///|
+/// Every filter must round trip across many lengths *and* several content shapes.
+///
+/// This is the test that was missing. The earlier filter coverage used one
+/// convenient repeated pattern at one convenient length, and that combination hid
+/// real defects: three BCJ filters corrupted data only for particular words, and
+/// only once the payload grew past a few dozen bytes. Length alone is not enough
+/// either, so each length is tried with zeros, text, pseudo-random content and a
+/// payload built from real x86 branch instructions.
+test "all filters round trip across lengths and content shapes" {
+  let filters : Array[@lib.FilterMode] = [
+    @lib.FilterMode::None,
+    @lib.FilterMode::X86,
+    @lib.FilterMode::Delta(1),
+    @lib.FilterMode::Delta(8),
+  ]
+  let lengths : Array[Int] = [
+    0, 1, 3, 4, 5, 8, 12, 16, 20, 24, 25, 26, 31, 32, 40, 64, 100, 200, 1000,
+  ]
+  let branches = @hex.decode("e800000000e9fbffffff90e801000000c3")
+  for filter in filters {
+    for length in lengths {
+      let shapes : Array[Bytes] = [
+        Bytes::make(length, b'\x00'),
+        repeat_to_length(b"MoonXZ library consumer.\n", length),
+        pseudo_random_bytes(0x5EEDU, length),
+        pseudo_random_bytes(0xC0FFEEU, length),
+        repeat_to_length(branches, length),
+      ]
+      for shape in shapes {
+        let options = @lib.CompressionOptions::new(level=6, filter~)
+        let encoded = @lib.compress_with_options(shape, options)
+        let decoded = @lib.decompress(encoded) catch {
+          _ => b"\x00decode failed"
+        }
+        @test.assert_eq(decoded, shape)
+      }
+    }
   }
 }

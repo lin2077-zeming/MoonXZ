@@ -1,4 +1,4 @@
-# MoonXZ Progress
+﻿# MoonXZ Progress
 
 更新时间：2026-09-11
 
@@ -15,10 +15,10 @@
 ## 当前状态摘要
 
 项目已经具备完整的 XZ/LZMA2 解码和压缩编码能力，并新增了 `.lzma` 旧格式的
-双向支持。filter 覆盖 delta 与 x86/ARM/ARM64/SPARC BCJ，另有三个 BCJ filter
-明确标记为未实现并返回 `Unsupported`。支持多目标构建、流式 API、文件 CLI，
-并与 Python `lzma` 做双向互操作验证。GitHub Actions 已在 Windows、Ubuntu、
-macOS 三个平台通过。
+双向支持。交付的 filter 是 delta 与 x86 BCJ，两者都与 `liblzma` 双向互通并通过
+"长度 × 内容形态"全矩阵测试；其余 BCJ filter id 一律返回 `Unsupported`。支持
+多目标构建、流式 API、文件 CLI，并与 Python `lzma` 做双向互操作验证。
+GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
 当前尚未正式发布到 mooncakes.io，这是比赛最终验收前的主要未完成事项。
 
@@ -31,7 +31,6 @@ macOS 三个平台通过。
 - `.lzma` LZMA1 旧格式编码
 - 新公开 API：`decompress_lzma1`、`decompress_lzma1_with_limit`、
   `compress_lzma1`、`lzma1_properties`、`lzma1_declared_size`
-- ARM、ARM64、SPARC 三个 BCJ filter
 - CLI 新增 `lzma-decompress`、`lzma-roundtrip`、`lzma-compress-file`、
   `lzma-decompress-file`，`compress-file` 支持新的 filter 名
 
@@ -48,24 +47,37 @@ macOS 三个平台通过。
 
 ### 验证增强
 
-- 测试数从 20 增至 32，四目标（wasm / wasm-gc / js / native）全绿
+- 测试数从 20 增至 34，四目标（wasm / wasm-gc / js / native）全绿
 - 新增逐字节截断测试：任何前缀都不得解出原始数据
 - 新增单字节全量变异测试：216 次变异中 210 次明确报错，其余 6 次为格式本身
   无法检测的情形（LZMA2 框架长度可被解码器重新推导），且没有任何一次变异
   静默产出与原文不同的数据
 - 新增多 chunk 尺寸矩阵测试，覆盖 65535 / 65536 / 65537 / 70000 / 150000
-- x86、ARM、SPARC、delta 四个 filter 的向量由 Python 3.14 `liblzma` 生成并
-  双向验证；ARM64 只有自带绕回测试，因为 `liblzma` 没有暴露该 filter
-- `scripts/interop.py` 扩展为覆盖 XZ 四类 check、四个 filter 和 `.lzma`
+- 新增"全 filter × 长度 × 内容形态"矩阵测试：4 个 filter × 19 个长度 × 5 种内容
+- delta 与 x86 两个 filter 的向量由 Python 3.14 `liblzma` 生成并双向验证
+- `scripts/interop.py` 扩展为覆盖 XZ 四类 check、x86/delta、`.lzma` 两种头形式，
+  并断言其余 filter id 返回 `Unsupported`
 
-### 尝试过但搁置的工作
+### 撤回的工作：ARM、ARM64、SPARC BCJ filter
 
-- ARM-Thumb 与 PowerPC BCJ filter 都写了实现，也能和自身绕回，但无法与
-  `liblzma` 对齐。实测发现 `liblzma` 对这两个 filter 的字节变换与 xz-embedded
-  参考实现的描述不一致（例如 PowerPC 的 `48 00 00 01` 被改写而 `48 00 00 00`
-  不会，ARM-Thumb 的 `00 f0 02 f8` 被改写为 `00 f0 04 f8`，但按参考实现的位判据
-  都不该命中）。由于归纳不出可依赖的规则，而 BCJ 位域算错会静默产出错误字节，
-  最终保持返回 `Unsupported`。分析和现象记录在 `docs/DESIGN.md`
+三个 filter 都写过完整实现，也都通过了最初的向量测试，但在补齐"多长度 × 多内容
+形态"矩阵后被判定为**会静默损坏数据**：
+
+- 地址运算在特定字上溢出。32 位无符号环绕让编码与解码不再互逆，编码后再解码
+  无法还原原文
+- `liblzma` 会以 `Corrupt input data` 拒绝 MoonXZ 写出的流；MoonXZ 也无法解码
+  liblzma 写出的同类流（双向各约 8/10 通过）
+
+它们躲过最初测试的原因是那些测试只用**一个重复模式**配**一个方便的长度**。
+现在这些 filter id 一律返回 `Unsupported`，并由测试固定住这个边界。
+
+### 未能实现的工作：ARM-Thumb、PowerPC、IA64
+
+无法归纳出与 `liblzma` 一致的字节变换规则。实测中 `liblzma` 的行为与 xz-embedded
+参考实现的文字描述不符（例如 PowerPC 的 `48 00 00 01` 被改写而 `48 00 00 00`
+不会；ARM-Thumb 的 `00 f0 02 f8` 被改写为 `00 f0 04 f8`，但按参考实现的位判据
+都不该命中）。由于 BCJ 位域算错会静默产出错误字节，保持返回 `Unsupported`。
+分析与现象记录在 `docs/DESIGN.md`。
 
 ## 已完成事项
 
@@ -80,7 +92,7 @@ macOS 三个平台通过。
 - 可配置字典大小
 - 压缩失败时自动回退到未压缩 LZMA2 块
 - CRC32、CRC64、SHA-256 block check
-- delta filter 与 x86/ARM/ARM64/SPARC BCJ filter
+- delta filter 与 x86 BCJ filter
 - `.lzma` LZMA1 解码与编码
 
 ### API 与工具
@@ -102,7 +114,7 @@ macOS 三个平台通过。
 - 库包位于 `lin2077-zeming/moonxz/lib`
 - CLI 位于 `cmd/main`
 - `moon check --deny-warn --target all` 通过
-- `moon test --deny-warn --target all` 通过，32 个测试在四个目标全部通过
+- `moon test --deny-warn --target all` 通过，34 个测试在四个目标全部通过
 - `moon fmt --check` 通过
 - `moon bundle --all` 通过
 - Python `lzma` 双向互操作测试通过
@@ -153,7 +165,7 @@ macOS 三个平台通过。
 
 7. **未实现的 filter 明确报错，不做近似实现**
 
-   BCJ filter 的位域一旦算错，解码结果会静默变成错误字节。IA64、ARM-Thumb、
+   BCJ filter 的位域一旦算错，解码结果会静默变成错误字节。除了 delta 与 x86，本轮尝试过的 ARM、ARM64、SPARC、IA64、ARM-Thumb、
    PowerPC 三个 filter 目前按 id 识别后返回 `Unsupported`，这比给出一个
    未经验证的近似实现更安全，也让支持边界可测试。
 
@@ -173,7 +185,7 @@ macOS 三个平台通过。
 
 ### 可选后续
 
-- 补齐 IA64、ARM-Thumb、PowerPC BCJ filter
+- 补齐 ARM、ARM64、SPARC、ARM-Thumb、PowerPC、IA64 BCJ filter（前提是找到权威实现细节；若补齐，必须同时覆盖长度与内容形态）
 - 更深的 match finder 调优和压缩率基准
 - 大文件性能和内存基准
 - 更大文件的流式 `.lzma` 支持

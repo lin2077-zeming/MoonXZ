@@ -1,22 +1,24 @@
 ///|
 /// Optional filter placed before LZMA2 in an XZ block.
 ///
-/// `Delta` is a byte-distance filter and the remaining constructors are the
-/// branch-converter (BCJ) filters defined by the XZ specification. A BCJ filter
-/// rewrites machine-code branch addresses from relative to absolute form so that
-/// the LZMA2 encoder sees repeated byte sequences.
+/// `Delta` is a byte-distance filter and `X86` is the x86 branch-converter (BCJ)
+/// filter. A BCJ filter rewrites machine-code branch addresses from relative to
+/// absolute form so that the LZMA2 encoder sees repeated byte sequences.
 ///
-/// Three BCJ filters that the XZ specification defines are not implemented:
-/// IA64, ARM-Thumb and PowerPC. Each is recognized by filter id but reports
-/// `Unsupported`, so a stream that needs one fails loudly instead of decoding to
-/// wrong bytes.
+/// Every other filter id the XZ specification defines is recognized but reported
+/// as `Unsupported`: IA64, ARM, ARM64, ARM-Thumb, PowerPC and SPARC. They are
+/// refused rather than approximated because a BCJ filter whose address arithmetic
+/// is even slightly wrong corrupts the output silently - the block check can only
+/// report an inconsistency, not a wrong-but-consistent result.
+///
+/// `X86` is the only BCJ filter MoonXZ ships because it is the only one that
+/// passed a bidirectional interop check against liblzma on both synthetic branch
+/// instructions and random data. The reasons each other filter is withheld are
+/// recorded in `docs/DESIGN.md`.
 pub(all) enum FilterMode {
   None
   Delta(Int)
   X86
-  Arm
-  Arm64
-  Sparc
 }
 
 ///|
