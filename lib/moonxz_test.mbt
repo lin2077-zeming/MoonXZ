@@ -422,7 +422,7 @@ test "multi chunk lzma2 decoding stays correct across sizes" {
 }
 
 ///|
-/// Matches that reach across a 64 KiB chunk boundary exercise the LZMA2
+/// Matches that reach across a 64 KiB LZMA2 chunk boundary exercise the
 /// dictionary rules: a later chunk may keep the previous dictionary, while a
 /// chunk that resets it may not.
 ///
@@ -430,7 +430,7 @@ test "multi chunk lzma2 decoding stays correct across sizes" {
 /// distance 1, which is valid under every dictionary rule.
 test "matches spanning chunk boundaries round trip" {
   // A one-off 70000-byte period repeated twice. Every long match is between the
-  // two halves, at a distance larger than one chunk.
+  // two halves, at a distance larger than the old 64 KiB chunk size.
   let period = pseudo_random_bytes(0x5EEDU, 70000)
   let straddling = period + period
   @test.assert_eq(@lib.decompress(@lib.compress(straddling)), straddling)
@@ -445,6 +445,44 @@ test "matches spanning chunk boundaries round trip" {
   let noise = pseudo_random_bytes(0xBEEFU, 200)
   let mixed = Bytes::make(65530, b'A') + noise + Bytes::make(65530, b'A')
   @test.assert_eq(@lib.decompress(@lib.compress(mixed)), mixed)
+}
+
+///|
+/// Compression must actually shrink compressible data, and must not blow up
+/// incompressible data.
+///
+/// This guards the chunk-size logic. A chunk declares its uncompressed size in 21
+/// bits but its compressed size in 16, so a chunk that is both large and poorly
+/// compressible cannot be represented; getting that wrong either produced invalid
+/// streams above 65536 bytes or silently disabled compression for larger inputs.
+/// Both regressions were real, so the boundaries are pinned here.
+test "compression shrinks compressible input and stores incompressible input" {
+  // Incompressible: barely any expansion is allowed, and it must round trip.
+  for size in [65536, 65537, 100000, 131072, 140000, 300000] {
+    let noise = pseudo_random_bytes(0x5EEDU, size)
+    let encoded = @lib.compress(noise)
+    @test.assert_eq(@lib.decompress(encoded), noise)
+    // Only the chunk framing may be added.
+    @test.assert_eq(
+      encoded.length() <= noise.length() + size / 1024 + 128,
+      true,
+    )
+  }
+
+  // Compressible: the repetitive case must shrink to a small fraction, and the
+  // ratio must not degrade as the input grows past the old 64 KiB chunk size.
+  for size in [65536, 262144, 1048576] {
+    let unit = b"MoonXZ compression ratio guard payload line.\n"
+    let input = Bytes::repeat(unit, size / unit.length() + 1)[:size].to_owned()
+    let encoded = @lib.compress_with_options(
+      input,
+      @lib.CompressionOptions::new(level=6),
+    )
+    @test.assert_eq(@lib.decompress(encoded), input)
+    // A tenth of the input is a loose bound that still fails if the encoder
+    // falls back to storing, which is what the 64 KiB chunking used to do.
+    @test.assert_eq(encoded.length() * 10 < input.length(), true)
+  }
 }
 
 ///|

@@ -44,9 +44,6 @@ const ARM64_FILTER_ID : UInt64 = 0x0AUL
 const MAX_BLOCK_HEADER : Int = 1024
 
 ///|
-const MAX_UNCOMPRESSED_CHUNK : Int = 65536
-
-///|
 priv struct FilterSpec {
   id : UInt64
   properties : Bytes

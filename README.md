@@ -1,4 +1,4 @@
-# MoonXZ
+﻿# MoonXZ
 
 MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目目标是为
 MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
@@ -184,6 +184,25 @@ moon run cmd/main -- lzma-decompress-file <input> <output>
 十六进制命令保留了轻量测试入口，文件命令通过 `moonbitlang/x/fs` 读写
 本地文件。库包本身仍然不依赖文件系统。
 
+### 性能
+
+基准测试在 `lib/moonxz_bench_test.mbt`，直接运行即可打印表格：
+
+```text
+moon test --release --target native
+```
+
+native、level 6、1 MiB 输入的参考数据（同一台机器上对比 Python `liblzma`）：
+
+| 内容 | MoonXZ 输出 | liblzma 输出 | MoonXZ 速度 |
+| --- | --- | --- | --- |
+| 重复文本 | 428 B | 328 B | 约 65 MiB/s 压缩、53 MiB/s 解压 |
+| 半重复 | 524624 B | 525416 B | — |
+| 随机 | 1048688 B | 1048688 B | — |
+
+半重复与随机数据的输出与 `liblzma` 基本持平；重复数据仍有约 1.3 倍差距，原因是
+LZMA2 压缩块的未压缩上限当前保守地停在 64 KiB，限制了可用匹配距离。原因与改进
+方向记录在 `docs/DESIGN.md`。
 ## 验证
 
 项目自带以下验证命令：

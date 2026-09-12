@@ -45,6 +45,7 @@ fn find_match(
   end : Int,
   previous : Array[Int],
   depth : Int,
+  nice_length : Int,
   dictionary_size : Int,
 ) -> Match? {
   if position + MATCH_MIN_LENGTH > end {
@@ -73,7 +74,12 @@ fn find_match(
     if length >= MATCH_MIN_LENGTH && length > best_length {
       best_length = length
       best_distance = position - candidate
-      if best_length == max_length {
+      // Stop once the match is long enough to be worth taking. Without this the
+      // search keeps walking the chain to find a strictly longer match, which on
+      // repetitive input means comparing hundreds of bytes per candidate and
+      // dominates the whole encoder's runtime. Every serious LZMA encoder cuts
+      // the search off at a "nice" length for exactly this reason.
+      if best_length >= nice_length || best_length == max_length {
         break
       }
     }
@@ -88,12 +94,43 @@ fn find_match(
 }
 
 ///|
+/// Hash chain search depth per compression level, following the shape of the
+/// reference encoder's presets: level 1 searches a couple of candidates, level 9
+/// searches deeply. A larger depth buys a slightly shorter output and costs time
+/// roughly linearly.
 fn compression_depth(level : Int) -> Int {
   if level <= 0 {
     0
-  } else if level >= 9 {
-    1024
+  } else if level <= 2 {
+    2
+  } else if level <= 4 {
+    8
+  } else if level <= 6 {
+    32
+  } else if level <= 8 {
+    96
   } else {
-    1 << level
+    256
+  }
+}
+
+///|
+/// Match length at which the search stops looking for something better.
+///
+/// The cutoff matters more than the depth on repetitive input: a match of this
+/// length already compresses well, and continuing to search only costs time.
+fn compression_nice_length(level : Int) -> Int {
+  if level <= 0 {
+    MATCH_MIN_LENGTH
+  } else if level <= 2 {
+    16
+  } else if level <= 4 {
+    32
+  } else if level <= 6 {
+    64
+  } else if level <= 8 {
+    128
+  } else {
+    MATCH_MAX_LENGTH
   }
 }

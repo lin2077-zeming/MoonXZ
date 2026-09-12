@@ -1,5 +1,10 @@
 ///|
 /// Range encoder used by the LZMA probability models.
+///
+/// The output buffer is pre-sized because `shift_low` pushes one byte per
+/// renormalisation and the literal path renormalises constantly. Letting the
+/// array grow from a small capacity reallocates and copies its whole contents
+/// many times over a large input, which dominated the encoder's runtime.
 priv struct RangeEncoder {
   output : Array[Byte]
   mut low : UInt64
@@ -9,9 +14,13 @@ priv struct RangeEncoder {
 }
 
 ///|
-fn RangeEncoder::new() -> RangeEncoder {
+/// `hint` is the uncompressed size this encoder is about to process. The
+/// compressed output is normally much smaller, but sizing for the input avoids
+/// growth entirely and costs only the allocation.
+fn RangeEncoder::new(hint? : Int = 1024) -> RangeEncoder {
+  let capacity = if hint < 1024 { 1024 } else { hint }
   {
-    output: Array(capacity=1024),
+    output: Array(capacity~),
     low: 0UL,
     range: 0xFFFFFFFFU,
     cache: b'\x00',

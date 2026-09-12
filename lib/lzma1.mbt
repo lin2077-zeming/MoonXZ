@@ -141,10 +141,11 @@ fn encode_lzma1_payload(
   lp : Int,
   pb : Int,
 ) -> Bytes {
-  let range = RangeEncoder::new()
+  let range = RangeEncoder::new(hint=data.length())
   let state = LzmaEncoder::with_properties(lc, lp, pb)
   let previous = build_match_chains(data)
   let depth = compression_depth(options.level)
+  let nice_length = compression_nice_length(options.level)
   let mut position = 0
   while position < data.length() {
     match
@@ -154,6 +155,7 @@ fn encode_lzma1_payload(
         data.length(),
         previous,
         depth,
+        nice_length,
         options.dict_size,
       ) {
       Some(found) => {
