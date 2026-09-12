@@ -54,8 +54,18 @@ macOS 三个平台通过。
   无法检测的情形（LZMA2 框架长度可被解码器重新推导），且没有任何一次变异
   静默产出与原文不同的数据
 - 新增多 chunk 尺寸矩阵测试，覆盖 65535 / 65536 / 65537 / 70000 / 150000
-- BCJ 向量全部由 Python 3.14 `liblzma` 生成并双向验证
+- x86、ARM、SPARC、delta 四个 filter 的向量由 Python 3.14 `liblzma` 生成并
+  双向验证；ARM64 只有自带绕回测试，因为 `liblzma` 没有暴露该 filter
 - `scripts/interop.py` 扩展为覆盖 XZ 四类 check、四个 filter 和 `.lzma`
+
+### 尝试过但搁置的工作
+
+- ARM-Thumb 与 PowerPC BCJ filter 都写了实现，也能和自身绕回，但无法与
+  `liblzma` 对齐。实测发现 `liblzma` 对这两个 filter 的字节变换与 xz-embedded
+  参考实现的描述不一致（例如 PowerPC 的 `48 00 00 01` 被改写而 `48 00 00 00`
+  不会，ARM-Thumb 的 `00 f0 02 f8` 被改写为 `00 f0 04 f8`，但按参考实现的位判据
+  都不该命中）。由于归纳不出可依赖的规则，而 BCJ 位域算错会静默产出错误字节，
+  最终保持返回 `Unsupported`。分析和现象记录在 `docs/DESIGN.md`
 
 ## 已完成事项
 

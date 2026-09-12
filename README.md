@@ -113,19 +113,38 @@ let declared = @moonxz.lzma1_declared_size(legacy)
 
 ## BCJ filter 支持范围
 
-| filter id | 名称 | 状态 |
-| --- | --- | --- |
-| 0x03 | delta | 支持 |
-| 0x04 | x86 | 支持 |
-| 0x05 | PowerPC | 未实现，返回 `Unsupported` |
-| 0x06 | IA64 | 未实现，返回 `Unsupported` |
-| 0x07 | ARM | 支持 |
-| 0x08 | ARM-Thumb | 未实现，返回 `Unsupported` |
-| 0x09 | SPARC | 支持 |
-| 0x0A | ARM64 | 支持 |
-| 0x21 | LZMA2 | 支持 |
+| filter id | 名称 | 状态 | 验证方式 |
+| --- | --- | --- | --- |
+| 0x03 | delta | 支持 | liblzma 双向 |
+| 0x04 | x86 | 支持 | liblzma 双向 |
+| 0x05 | PowerPC | 未实现，返回 `Unsupported` | — |
+| 0x06 | IA64 | 未实现，返回 `Unsupported` | — |
+| 0x07 | ARM | 支持 | liblzma 双向 |
+| 0x08 | ARM-Thumb | 未实现，返回 `Unsupported` | — |
+| 0x09 | SPARC | 支持 | liblzma 双向 |
+| 0x0A | ARM64 | 支持 | 仅 MoonXZ 自身绕回 |
+| 0x21 | LZMA2 | 支持 | liblzma 双向 |
 
 未实现的 filter 会明确报错，不会静默产出错误字节。
+
+### 关于 ARM64 的验证强度
+
+`liblzma` 没有暴露 ARM64 filter，因此 ARM64 **没有**独立的交叉验证，只有
+MoonXZ 自身的编码-解码绕回测试。它的位域处理遵循 xz 规范中 ARM64 BCJ 的定义，
+但这一点没有第三方实现可以对照。
+
+x86、ARM、SPARC 和 delta 四个 filter 则是真正双向验证过的：解码方向以
+`liblzma` 生成的向量断言，编码方向由 Python `lzma` 解回原文。
+
+### 为什么 ARM-Thumb 和 PowerPC 没有实现
+
+两个 filter 都写过实现，但无法与 `liblzma` 对齐：`liblzma` 对这两个 filter 的
+字节变换与 xz-embedded 参考实现给出的描述不一致，实测下来只有部分候选字会被
+filter 命中，无法归纳出一条可依赖的规则。BCJ 位域算错的后果是解码结果静默变成
+错误字节，而 block check 只能发现不一致、无法区分"正确"与"看起来正确"。
+
+因此选择明确返回 `Unsupported`。这比交付一个未经验证的近似实现更安全，也让
+支持边界可测试。它们的实现路线记录在 `docs/DESIGN.md`。
 
 ## CLI
 
@@ -173,11 +192,13 @@ moon test --target all --deny-warn
 - Python `lzma` 生成的压缩 XZ 测试向量
 - 输出大小限制错误
 
-`scripts/interop.py` 还可以调用 CLI 做额外的 Python `lzma` 双向互操作检查。
+`scripts/interop.py` 还可以调用 CLI 做额外的 Python `lzma` 双向互操作检查，
+覆盖 XZ 四类 check、x86/ARM/SPARC/delta 四个 filter 以及 `.lzma` 的两种头形式。
 
-BCJ 与 `.lzma` 的测试向量全部由 Python 3.14 的 `liblzma`（`xz-utils` 使用的
-同一份 C 实现）现场生成，用于交叉验证 MoonXZ 的解码结果。`scripts/interop.py`
-同时验证反方向：Python `lzma` 能正确解压 MoonXZ 写出的数据。
+这些向量由 Python 3.14 的 `liblzma`（`xz-utils` 使用的同一份 C 实现）现场生成，
+用于交叉验证 MoonXZ 的解码结果；`scripts/interop.py` 同时验证反方向，即
+Python `lzma` 能正确解压 MoonXZ 写出的数据。ARM64 没有这样的对照实现，因此只
+有自带绕回测试，具体见上方"关于 ARM64 的验证强度"。
 
 ## 项目结构
 
@@ -224,9 +245,9 @@ b'hi'
 
 MoonXZ 的 XZ 容器行为、LZMA 解码算法和 BCJ filter 语义参考了 XZ file format
 specification 以及 `github.com/ulikunitz/xz` 的纯 Go 实现，并进行了 MoonBit
-类型系统、错误处理和内存模型适配。各 filter 的输出以 Python `liblzma` 生成的
-向量做交叉验证。参考项目的 BSD-3-Clause 许可证和归属信息见
-`THIRD_PARTY_NOTICES.md`。
+类型系统、错误处理和内存模型适配。x86、ARM、SPARC 与 delta 的输出以 Python
+`liblzma` 生成的向量做交叉验证；ARM64 只有自带绕回验证。参考项目的
+BSD-3-Clause 许可证和归属信息见 `THIRD_PARTY_NOTICES.md`。
 
 文件 CLI 使用 `moonbitlang/x/fs`，该依赖及其 Apache-2.0 许可证信息也记录在
 `THIRD_PARTY_NOTICES.md`。
