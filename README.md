@@ -1,4 +1,4 @@
-﻿# MoonXZ
+# MoonXZ
 
 MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目目标是为
 MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
@@ -34,7 +34,7 @@ finder、压缩级别和字典大小参数，并可写出 `.lzma`。默认压缩
 
 ## 安装与使用
 
-发布到 mooncakes.io 后可以添加模块：
+发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.1`）：
 
 ```text
 moon add lin2077-zeming/moonxz
@@ -58,6 +58,27 @@ fn example() -> Unit raise {
   println(decoded == input)
 }
 ```
+
+### 最小可复现示例
+
+仓库自带的示例就是 CLI，可以从零复现。在仓库根目录依次执行：
+
+```text
+moon run cmd/main -- demo
+```
+
+预期输出（`xz_bytes` 与 `percent` 会随数据变化，`roundtrip` 必须为 `true`）：
+
+```text
+input_bytes=7400 xz_bytes=156 percent=2
+roundtrip=true
+xz_hex=fd377a585a000004e6d6b44602...
+```
+
+CLI 之外还可以用一个独立工程验证发布产物确实可用：新建任意 MoonBit 工程，
+`moon add lin2077-zeming/moonxz`，导入 `lin2077-zeming/moonxz/lib`，然后调用
+`@moonxz.compress` / `@moonxz.decompress`。`scripts/interop.py` 会自动完成这一
+验证，并额外检查 Python `lzma` 与本库的双向互通。
 
 指定校验类型：
 
