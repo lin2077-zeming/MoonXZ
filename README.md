@@ -1,4 +1,4 @@
-﻿# MoonXZ
+# MoonXZ
 
 MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目目标是为
 MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
@@ -192,17 +192,24 @@ moon run cmd/main -- lzma-decompress-file <input> <output>
 moon test --release --target native
 ```
 
-native、level 6、1 MiB 输入的参考数据（同一台机器上对比 Python `liblzma`）：
+native、level 6、1 MiB 输入的参考数据（同一台机器上与 Python `liblzma` 对比）：
 
-| 内容 | MoonXZ 输出 | liblzma 输出 | MoonXZ 速度 |
-| --- | --- | --- | --- |
-| 重复文本 | 428 B | 328 B | 约 65 MiB/s 压缩、53 MiB/s 解压 |
-| 半重复 | 524624 B | 525416 B | — |
-| 随机 | 1048688 B | 1048688 B | — |
+| 内容 | MoonXZ 输出 | liblzma 输出 | 压缩速度 | 解压速度 |
+| --- | --- | --- | --- | --- |
+| 重复文本 | 1752 B | 328 B | 约 68 MiB/s | 约 54 MiB/s |
+| 半重复 | 525196 B | 525416 B | — | — |
+| 随机 | 1048688 B | 1048688 B | 约 3.2 MiB/s | 约 35 MiB/s |
 
-半重复与随机数据的输出与 `liblzma` 基本持平；重复数据仍有约 1.3 倍差距，原因是
-LZMA2 压缩块的未压缩上限当前保守地停在 64 KiB，限制了可用匹配距离。原因与改进
-方向记录在 `docs/DESIGN.md`。
+两点值得注意：
+
+- **压缩速度强烈依赖数据的可压缩性。** 重复数据约 68 MiB/s，而随机数据只有
+  约 3.2 MiB/s。随机数据每次匹配搜索都要走完整条哈希链才会放弃，因此慢得多。
+  解压速度则稳定在 35–54 MiB/s。
+- **半重复与随机数据的输出与 `liblzma` 基本持平**；重复数据仍有约 5 倍差距，
+  原因是 LZMA2 压缩块的未压缩上限当前保守地停在 64 KiB，限制了可用匹配距离。
+  提高该上限可以把它降到约 1.3 倍，但会暴露一个解码器缺陷，因此暂未启用；
+  实测数据与入手点记录在 `docs/DESIGN.md`。
+
 ## 验证
 
 项目自带以下验证命令：

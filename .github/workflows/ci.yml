@@ -54,3 +54,10 @@ jobs:
 
       - name: Python interoperability
         run: python scripts/interop.py
+
+      # The benchmarks double as an end-to-end exercise of the largest inputs the
+      # library claims to handle, so they run in CI as well as on demand. They
+      # also print the ratio table the README quotes, which keeps those numbers
+      # checkable rather than asserted.
+      - name: Benchmarks and ratio table
+        run: moon test --release --target native -p lin2077-zeming/moonxz/lib
