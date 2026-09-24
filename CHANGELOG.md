@@ -1,11 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.4.2
 
 - **适配 MoonBit 工具链更新**（`moonc v0.10.12` → `v0.10.14`）。新版把
   `implicit_impl_as_method` 报为警告，导致 `moon check --deny-warn` 直接失败，
   也就是 CI 的检查步骤会挂。已为 `CheckKind` 和 `XzError` 补上显式的
   `pub extend ... with Eq::{...}` / `... with @debug.Debug::{to_repr}` 声明
+- 这是为满足"验收版本 `0.10.14+`"而发布的补丁：`0.4.1` 在 `0.10.14` 上
+  `moon check --deny-warn` 会失败（3 个 `implicit_impl_as_method`），请勿用
+  `0.4.1` 在 `0.10.14+` 上构建，改用 `0.4.2`
 - 补全公共 API 的文档注释（`crc32`、`crc64`、`check_bytes`、`CheckKind::id` /
   `size` / `from_id`、`compress_with_check`、`XzWriter::new` / `write` / `finish`、
   `XzReader::new`），启用 `missing_doc` 后不再有警告
