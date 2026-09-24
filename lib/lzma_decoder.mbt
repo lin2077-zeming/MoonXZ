@@ -58,7 +58,7 @@ fn LzmaDecoder::new(lc : Int, lp : Int, pb : Int) -> LzmaDecoder raise XzError {
     let bits = (pos_slot_value >> 1) - 1
     pos_model.push(make_probability_array(1 << bits))
   }
-  let decoder : LzmaDecoder = {
+  let decoder : LzmaDecoder = LzmaDecoder::{
     state: 0,
     rep0: 0U,
     rep1: 0U,

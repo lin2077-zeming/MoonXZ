@@ -16,8 +16,9 @@ priv struct RangeEncoder {
 ///|
 /// `hint` is the uncompressed size this encoder is about to process. The
 /// compressed output is normally much smaller, but sizing for the input avoids
-/// growth entirely and costs only the allocation.
-fn RangeEncoder::new(hint? : Int = 1024) -> RangeEncoder {
+/// growth entirely and costs only the allocation. It is required rather than
+/// optional because every caller knows the size it is about to encode.
+fn RangeEncoder::new(hint : Int) -> RangeEncoder {
   let capacity = if hint < 1024 { 1024 } else { hint }
   {
     output: Array(capacity~),

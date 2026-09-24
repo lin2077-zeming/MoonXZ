@@ -141,7 +141,7 @@ fn encode_lzma1_payload(
   lp : Int,
   pb : Int,
 ) -> Bytes {
-  let range = RangeEncoder::new(hint=data.length())
+  let range = RangeEncoder::new(data.length())
   let state = LzmaEncoder::with_properties(lc, lp, pb)
   let previous = build_match_chains(data)
   let depth = compression_depth(options.level)

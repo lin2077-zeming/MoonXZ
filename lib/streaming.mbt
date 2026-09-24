@@ -13,6 +13,8 @@ pub struct XzWriter {
 }
 
 ///|
+/// Creates a writer. `check_kind` selects the block check (CRC64 by default) and
+/// `options` the compression parameters.
 pub fn XzWriter::new(
   check_kind? : CheckKind = Crc64,
   options? : CompressionOptions = CompressionOptions::new(),
@@ -21,6 +23,9 @@ pub fn XzWriter::new(
 }
 
 ///|
+/// Encodes `data` as one complete XZ block and returns the bytes to emit. The
+/// first call also emits the stream header. Raises `Corrupt` once the writer has
+/// been finished.
 pub fn XzWriter::write(self : XzWriter, data : Bytes) -> Bytes raise XzError {
   if self.finished {
     raise Corrupt("XZ writer is already finished")
@@ -43,6 +48,8 @@ pub fn XzWriter::write(self : XzWriter, data : Bytes) -> Bytes raise XzError {
 }
 
 ///|
+/// Emits the XZ index and footer, completing the stream. Raises `Corrupt` if the
+/// writer was already finished.
 pub fn XzWriter::finish(self : XzWriter) -> Bytes raise XzError {
   if self.finished {
     raise Corrupt("XZ writer is already finished")
@@ -72,6 +79,8 @@ pub struct XzReader {
 }
 
 ///|
+/// Creates a reader over an in-memory XZ stream. `max_output` bounds the total
+/// decoded size across all blocks, so a hostile stream cannot exhaust memory.
 pub fn XzReader::new(input : Bytes, max_output? : Int = 1 << 30) -> XzReader {
   {
     cursor: ByteCursor::new(input),

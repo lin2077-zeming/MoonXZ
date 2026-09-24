@@ -8,6 +8,21 @@ pub(all) enum CheckKind {
 } derive(Eq, @debug.Debug)
 
 ///|
+/// Re-exports the derived `Eq` methods as ordinary methods, so `kind.equal(other)`
+/// keeps working for callers.
+///
+/// The compiler used to promote methods from a derived `impl` automatically. That
+/// promotion is deprecated and now warns unless it is requested explicitly.
+pub extend CheckKind with Eq::{equal, not_equal}
+
+///|
+/// Re-exports the derived `Debug` method as an ordinary method, so
+/// `@debug.to_string(kind)` keeps working for callers.
+pub extend CheckKind with @debug.Debug::{to_repr}
+
+///|
+/// The identifier this check uses in an XZ stream header: 0 for none, 1 for
+/// CRC32, 4 for CRC64 and 10 for SHA-256.
 pub fn CheckKind::id(self : CheckKind) -> Int {
   match self {
     None => 0
@@ -18,6 +33,8 @@ pub fn CheckKind::id(self : CheckKind) -> Int {
 }
 
 ///|
+/// The number of check bytes this algorithm stores after each block: 0, 4, 8 or
+/// 32 respectively.
 pub fn CheckKind::size(self : CheckKind) -> Int {
   match self {
     None => 0
@@ -28,6 +45,8 @@ pub fn CheckKind::size(self : CheckKind) -> Int {
 }
 
 ///|
+/// The check algorithm for a stream header identifier, or `None` when the
+/// identifier is not one the XZ format defines.
 pub fn CheckKind::from_id(id : Int) -> CheckKind? {
   match id {
     0 => Some(None)
@@ -39,6 +58,7 @@ pub fn CheckKind::from_id(id : Int) -> CheckKind? {
 }
 
 ///|
+/// CRC32 as used by the XZ stream header and block header, over `data`.
 pub fn crc32(data : Bytes) -> UInt {
   let mut crc = 0xFFFFFFFFU
   for byte in data {
@@ -55,6 +75,7 @@ pub fn crc32(data : Bytes) -> UInt {
 }
 
 ///|
+/// CRC64/XZ over `data`, the default block check for streams MoonXZ writes.
 pub fn crc64(data : Bytes) -> UInt64 {
   let mut crc = 0xFFFFFFFFFFFFFFFFUL
   for byte in data {
@@ -191,6 +212,8 @@ pub fn sha256(data : Bytes) -> Bytes {
 }
 
 ///|
+/// Computes the block check `kind` over `data`, returned in the byte order the
+/// XZ format stores it in. `CheckKind::None` yields an empty result.
 pub fn check_bytes(kind : CheckKind, data : Bytes) -> Bytes {
   match kind {
     None => b""

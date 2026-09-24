@@ -58,6 +58,8 @@ pub fn compress(data : Bytes) -> Bytes {
 }
 
 ///|
+/// Compresses data into a single-block XZ stream using default options and an
+/// explicit block check.
 pub fn compress_with_check(data : Bytes, check_kind : CheckKind) -> Bytes {
   compress_with_options_and_check(data, CompressionOptions::new(), check_kind)
 }

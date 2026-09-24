@@ -99,7 +99,7 @@ fn encode_lzma_chunk(
   nice_length : Int,
   dictionary_size : Int,
 ) -> Bytes {
-  let range = RangeEncoder::new(hint=size)
+  let range = RangeEncoder::new(size)
   let state = LzmaEncoder::new()
   let end = start + size
   let mut position = start

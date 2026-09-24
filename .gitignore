@@ -11,3 +11,7 @@ target
 比赛要求.md
 moonbit使用说明.md
 项目申报书样本.md
+
+# A separate project that happens to live in this folder. It has its own
+# repository and remote, so it must not be committed here.
+MoonTera/

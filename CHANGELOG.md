@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **适配 MoonBit 工具链更新**（`moonc v0.10.12` → `v0.10.14`）。新版把
+  `implicit_impl_as_method` 报为警告，导致 `moon check --deny-warn` 直接失败，
+  也就是 CI 的检查步骤会挂。已为 `CheckKind` 和 `XzError` 补上显式的
+  `pub extend ... with Eq::{...}` / `... with @debug.Debug::{to_repr}` 声明
+- 补全公共 API 的文档注释（`crc32`、`crc64`、`check_bytes`、`CheckKind::id` /
+  `size` / `from_id`、`compress_with_check`、`XzWriter::new` / `write` / `finish`、
+  `XzReader::new`），启用 `missing_doc` 后不再有警告
+- 修正两处新工具链提示的问题：`LzmaDecoder` 的结构体字面量补上类型前缀；
+  `RangeEncoder::new` 的 `hint` 参数默认值从未被使用，改为必填
+- 说明：`unnecessary_annotation` 在跨包引用上会误报。按提示去掉
+  `@moonxz.CheckKind::` 里的类型路径会让构建直接失败（实测 `The type/trait
+  CheckKind is not found`），因此保留原写法；该警告默认关闭，不影响 `--deny-warn`
+
 - 压缩性能：match finder 增加 nice-length 提前退出，并按级别收紧链搜索深度。
   此前只有找到"更长的匹配"才会停止搜索，在重复数据上每个候选都要比较数百字节，
   拖慢了整个编码器。各级别的 depth / nice length 现在按参考编码器的形状设定
