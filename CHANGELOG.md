@@ -17,6 +17,12 @@
 - 说明：`unnecessary_annotation` 在跨包引用上会误报。按提示去掉
   `@moonxz.CheckKind::` 里的类型路径会让构建直接失败（实测 `The type/trait
   CheckKind is not found`），因此保留原写法；该警告默认关闭，不影响 `--deny-warn`
+- 文档：统一 README、CLI banner（原先仍打印 `MoonXZ 0.4.0`）、`Progress.md` 和
+  申报书中的版本号。**注意 mooncakes 页面上的 README 仍是 0.4.2 发布时的旧快照**
+  （其中"当前版本"写着 `0.4.1`）：mooncakes 只在发布时抓取一次 README，已发布
+  版本无法修改，而 README 是在 0.4.2 发布之后才更正。实际安装到的就是 `0.4.2`，
+  可核对 tarball 内 `moon.mod` 的 `version = "0.4.2"`。如需让页面同步，只能发布
+  下一个版本（仅重新抓取 README，代码无需改动）
 
 - 压缩性能：match finder 增加 nice-length 提前退出，并按级别收紧链搜索深度。
   此前只有找到"更长的匹配"才会停止搜索，在重复数据上每个候选都要比较数百字节，
