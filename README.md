@@ -4,7 +4,8 @@ MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目�
 MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
 无关、无 FFI、可直接发布到 mooncakes.io。
 
-当前版本是 `0.4.1`。解压端支持标准 XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，
+当前版本是 `0.4.2`（需要在 `moonc` 0.10.14 或更高版本上构建；`0.4.1` 及更早的
+版本在新工具链上会因 `implicit_impl_as_method` 报错，请勿使用）。解压端支持标准 XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，
 以及 delta 与 x86 BCJ filter；压缩端具备 LZMA2 range encoder、hash chain match
 finder、压缩级别和字典大小参数，并可写出 `.lzma`。默认压缩级别为 6，字典大小
 为 8 MiB；级别 0 保留规范的未压缩 LZMA2 块模式。
@@ -34,7 +35,7 @@ finder、压缩级别和字典大小参数，并可写出 `.lzma`。默认压缩
 
 ## 安装与使用
 
-发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.1`）：
+发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.2`）：
 
 ```text
 moon add lin2077-zeming/moonxz

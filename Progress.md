@@ -1,12 +1,12 @@
-﻿# MoonXZ Progress
+# MoonXZ Progress
 
-更新时间：2026-09-11
+更新时间：2026-09-24
 
 ## 项目定位
 
 - 项目名：MoonXZ
 - 模块名：`lin2077-zeming/moonxz`
-- 当前版本：`0.4.0`
+- 当前版本：`0.4.2`（已发布至 mooncakes.io）
 - GitHub 仓库：https://github.com/lin2077-zeming/MoonXZ
 - 当前分支：`main`
 - 项目方向：纯 MoonBit 实现的 XZ / LZMA / LZMA2 压缩、解压、校验和工具库
@@ -20,9 +20,26 @@
 多目标构建、流式 API、文件 CLI，并与 Python `lzma` 做双向互操作验证。
 GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
-当前尚未正式发布到 mooncakes.io，这是比赛最终验收前的主要未完成事项。
+当前 `0.4.2` 已正式发布至 mooncakes.io，可直接 `moon add` 安装。发布版本已针对
+新工具链做兼容修复：`moonc` 0.10.14 起 `derive(Eq, @debug.Debug)` 推导出的实现
+必须显式声明，`0.4.1` 及更早版本在新工具链上会因 `implicit_impl_as_method` 报错，
+因此当前应以 `0.4.2` 为准。
 
-## 本轮（0.4.0）新增内容
+## 本轮（0.4.2）新增内容
+
+### 工具链兼容
+
+- 新工具链 `moonc v0.10.14+7d59c7ec9` 下 `moon check --deny-warn` 报出
+  `implicit_impl_as_method`：`CheckKind`、`XzError` 的 `Eq` / `@debug.Debug`
+  推导实现改为显式 `pub extend ... with Eq::{...}` 与
+  `pub extend ... with @debug.Debug::{to_repr}`
+- `RangeEncoder::new` 的 `hint` 参数去掉未使用的默认值，改为必填
+- `LzmaDecoder` 记录字面量补上类型前缀（`unqualified_record`）
+- 补齐公开函数的 `///|` 文档（`missing_doc`）
+- 已用全新工程 `moon add lin2077-zeming/moonxz` 下载 `0.4.2` 源码复验，
+  `moon check --deny-warn` 无 warning 无 error
+
+## 历史版本（0.4.0）新增内容
 
 ### 新功能
 
@@ -178,10 +195,13 @@ GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
 ### 必做
 
-- 正式执行 `moon publish`（当前版本 `0.4.0`）
-- 在 mooncakes.io 确认 `lin2077-zeming/moonxz` 的 `0.4.0` 版本可见且可安装
-- 发布后再次确认 GitHub README、mooncakes 页面和申报书信息一致
-- 提交比赛报名和申报材料时使用最终仓库链接、最新 commit 和发布版本
+- 无。`0.4.2` 已发布并复验通过；README、mooncakes 页面与申报书版本号已统一
+
+### 已完成
+
+- 正式执行 `moon publish` → 当前线上版本 `0.4.2`
+- 在 mooncakes.io 确认可见且可安装 → `yanked=False`，全新工程可 `moon add`
+- 确认 README、mooncakes 页面和申报书信息一致 → 三处版本号统一为 `0.4.2`
 
 ### 可选后续
 
@@ -218,11 +238,15 @@ C:\Users\LinZeming\AppData\Local\Python\bin\python.exe
 gh run list --repo lin2077-zeming/MoonXZ --limit 5
 ```
 
-如果 CI 仍是绿的，剩余工作就是完成正式发布：
+如果 CI 仍是绿的，说明当前发布版本仍然有效，无需再执行任何发布操作。
+
+如需发布新版本，先改 `moon.mod` 的 `version`，再执行：
 
 ```text
 moon login
 moon publish
 ```
 
-最后打开 mooncakes.io 确认模块、版本和 README 均已更新。
+最后打开 mooncakes.io 确认模块、版本和 README 均已更新。注意 README 由
+`moon.mod` 的 `readme = "README.md"` 指向，页面展示的是**发布那一刻**的 README，
+所以改完 README 必须重新发布才会同步到 mooncakes 页面。

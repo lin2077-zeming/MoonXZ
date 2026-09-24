@@ -1,6 +1,6 @@
 ///|
 fn usage() -> Unit {
-  println("MoonXZ 0.4.0")
+  println("MoonXZ 0.4.2")
   println("usage:")
   println("  moonxz demo")
   println("  moonxz compress <hex> [none|crc32|crc64|sha256]")
