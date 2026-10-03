@@ -37,7 +37,7 @@ LZMA2 range encoder、hash chain match finder、压缩级别和字典大小参�
 | 输出大小限制和错误分类 | 支持 |
 | Delta filter | 支持 |
 | x86 BCJ filter | 支持 |
-| IA64 / ARM-Thumb / PowerPC BCJ filter | 未实现，返回 `Unsupported` |
+| PowerPC / IA64 / ARM / ARM-Thumb / SPARC / ARM64 BCJ filter | 未实现，返回 `Unsupported` |
 | 流式 Reader / Writer | 支持 |
 | 文件 CLI | 支持 |
 
@@ -157,7 +157,7 @@ let declared = @moonxz.lzma1_declared_size(legacy)
 
 未实现的 filter 会明确报错，不会静默产出错误字节。
 
-### 为什么只交付 x86 一个 BCJ filter
+### 为什么只交付 delta 与 x86 两个 filter
 
 delta、x86 是仅有的两个"长度 × 内容形态"全矩阵通过、且与 `liblzma` 双向互通的
 filter：MoonXZ 写出的流 liblzma 能解，liblzma 写出的流 MoonXZ 也能解。
