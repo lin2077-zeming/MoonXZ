@@ -1,6 +1,16 @@
 ///|
+/// The version this build reports.
+///
+/// The banner has gone stale twice (0.4.0 while the module was 0.4.2, then
+/// 0.4.2 while it was 0.4.4) because the string is written by hand in a second
+/// place. It is named here so `version_test.mbt` can check it and so a version
+/// bump has one obvious place to change in this package.
+/// `scripts/self_audit.py` checks this constant against `moon.mod`.
+const CLI_VERSION : String = "0.4.4"
+
+///|
 fn usage() -> Unit {
-  println("MoonXZ 0.4.2")
+  println("MoonXZ \{CLI_VERSION}")
   println("usage:")
   println("  moonxz demo")
   println("  moonxz compress <hex> [none|crc32|crc64|sha256]")

@@ -69,6 +69,25 @@ jobs:
       - name: Format
         run: moon fmt --check
 
+      # The official MoonBit workflow template ends with `moon info` and a
+      # `git diff --exit-code`, and the acceptance guidance lists reviewing the
+      # generated interface diff as a quality signal. Committing the interface
+      # and failing on a diff is what makes that meaningful: with the files
+      # untracked, `git diff` does not see them at all and the check is vacuous.
+      # Tracking them also documents the public API in reviewable form, so an
+      # accidental signature change shows up as a diff instead of shipping.
+      - name: Interface is committed and unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          moon info
+          git add -A -- '*pkg.generated.mbti'
+          if ! git diff --cached --quiet; then
+            echo "::error::the generated interface changed; run 'moon info' locally and commit the result."
+            git diff --cached
+            exit 1
+          fi
+
       - name: Bundle
         run: moon bundle --all
 

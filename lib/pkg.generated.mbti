@@ -1,0 +1,121 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonxz/lib"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn check_bytes(CheckKind, Bytes) -> Bytes
+
+pub fn compress(Bytes) -> Bytes
+
+pub fn compress_lzma1(Bytes, options? : CompressionOptions, lc? : Int, lp? : Int, pb? : Int) -> Bytes raise XzError
+
+pub fn compress_with_check(Bytes, CheckKind) -> Bytes
+
+pub fn compress_with_options(Bytes, CompressionOptions) -> Bytes
+
+pub fn compress_with_options_and_check(Bytes, CompressionOptions, CheckKind) -> Bytes
+
+pub fn crc32(Bytes) -> UInt
+
+pub fn crc64(Bytes) -> UInt64
+
+pub fn decompress(Bytes) -> Bytes raise XzError
+
+pub fn decompress_lzma1(Bytes) -> Bytes raise XzError
+
+pub fn decompress_lzma1_with_limit(Bytes, Int) -> Bytes raise XzError
+
+pub fn decompress_with_limit(Bytes, Int) -> Bytes raise XzError
+
+pub fn lzma1_declared_size(Bytes) -> Int? raise XzError
+
+pub fn lzma1_properties(Bytes) -> (Int, Int, Int) raise XzError
+
+pub fn sha256(Bytes) -> Bytes
+
+// Errors
+pub(all) suberror XzError {
+  InvalidHeader(String)
+  Truncated(String)
+  Unsupported(String)
+  Corrupt(String)
+  ChecksumMismatch(String)
+  OutputLimitExceeded(Int)
+} derive(@debug.Debug)
+pub fn XzError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum CheckKind {
+  None
+  Crc32
+  Crc64
+  Sha256
+} derive(Eq, @debug.Debug)
+pub fn CheckKind::equal(Self, Self) -> Bool
+pub fn CheckKind::from_id(Int) -> Self?
+pub fn CheckKind::id(Self) -> Int
+pub fn CheckKind::not_equal(Self, Self) -> Bool
+pub fn CheckKind::size(Self) -> Int
+pub fn CheckKind::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CompressionOptions {
+  level : Int
+  dict_size : Int
+  filter : FilterMode
+}
+pub fn CompressionOptions::new(level? : Int, dict_size? : Int, filter? : FilterMode) -> Self
+
+pub(all) enum FilterMode {
+  None
+  Delta(Int)
+  X86
+}
+
+pub struct XzReader {
+  cursor : ByteCursor
+  max_output : Int
+  mut output_so_far : Int
+  mut check_kind : CheckKind?
+  records : Array[(Int, Int)]
+  mut stream_open : Bool
+  mut done : Bool
+}
+pub fn XzReader::new(Bytes, max_output? : Int) -> Self
+pub fn XzReader::read_block(Self) -> Bytes? raise XzError
+
+pub struct XzStreamDecoder {
+  window : Array[Byte]
+  mut consumed : Int
+  max_output : Int
+  mut output_so_far : Int
+  mut check_kind : CheckKind?
+  records : Array[(Int, Int)]
+  mut stream_open : Bool
+  mut done : Bool
+  mut input_finished : Bool
+  mut streams_seen : Int
+}
+pub fn XzStreamDecoder::buffered(Self) -> Int
+pub fn XzStreamDecoder::finish_input(Self) -> Unit
+pub fn XzStreamDecoder::is_done(Self) -> Bool
+pub fn XzStreamDecoder::new(max_output? : Int) -> Self
+pub fn XzStreamDecoder::next(Self) -> Bytes? raise XzError
+pub fn XzStreamDecoder::supply(Self, Bytes) -> Unit
+
+pub struct XzWriter {
+  check_kind : CheckKind
+  options : CompressionOptions
+  records : Array[(Int, Int)]
+  mut started : Bool
+  mut finished : Bool
+}
+pub fn XzWriter::finish(Self) -> Bytes raise XzError
+pub fn XzWriter::new(check_kind? : CheckKind, options? : CompressionOptions) -> Self
+pub fn XzWriter::write(Self, Bytes) -> Bytes raise XzError
+
+// Type aliases
+
+// Traits

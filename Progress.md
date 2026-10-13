@@ -157,7 +157,7 @@ GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 - 库包位于 `lin2077-zeming/moonxz/lib`
 - CLI 位于 `cmd/main`
 - `moon check --deny-warn --target all` 通过
-- `moon test --deny-warn --target all` 通过，34 个测试在四个目标全部通过
+- `moon test --deny-warn --target all` 通过，46 个测试在四个目标全部通过
 - `moon fmt --check` 通过
 - `moon bundle --all` 通过
 - Python `lzma` 双向互操作测试通过
