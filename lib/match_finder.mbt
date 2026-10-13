@@ -1,22 +1,22 @@
 ///|
-const MATCH_HASH_BITS : Int = 16
+const MATCH_HASH_BITS : Int32 = 16
 
 ///|
-const MATCH_MIN_LENGTH : Int = 3
+const MATCH_MIN_LENGTH : Int32 = 3
 
 ///|
-const MATCH_MAX_LENGTH : Int = 273
+const MATCH_MAX_LENGTH : Int32 = 273
 
 ///|
 priv struct Match {
-  length : Int
-  distance : Int
+  length : Int32
+  distance : Int32
 }
 
 ///|
 /// Builds a hash chain for each input position. A chain entry points to the
 /// previous position with the same three-byte hash.
-fn build_match_chains(data : Bytes) -> Array[Int] {
+fn build_match_chains(data : Bytes) -> Array[Int32] {
   let previous = Array::make(data.length(), -1)
   let heads = Array::make(1 << MATCH_HASH_BITS, -1)
   for position in 0..<data.length() {
@@ -30,7 +30,7 @@ fn build_match_chains(data : Bytes) -> Array[Int] {
 }
 
 ///|
-fn hash_match(data : Bytes, position : Int) -> Int {
+fn hash_match(data : Bytes, position : Int32) -> Int32 {
   let value = (data[position].to_uint() << 16) |
     (data[position + 1].to_uint() << 8) |
     data[position + 2].to_uint()
@@ -41,12 +41,12 @@ fn hash_match(data : Bytes, position : Int) -> Int {
 ///|
 fn find_match(
   data : Bytes,
-  position : Int,
-  end : Int,
-  previous : Array[Int],
-  depth : Int,
-  nice_length : Int,
-  dictionary_size : Int,
+  position : Int32,
+  end : Int32,
+  previous : Array[Int32],
+  depth : Int32,
+  nice_length : Int32,
+  dictionary_size : Int32,
 ) -> Match? {
   if position + MATCH_MIN_LENGTH > end {
     return None
@@ -98,7 +98,7 @@ fn find_match(
 /// reference encoder's presets: level 1 searches a couple of candidates, level 9
 /// searches deeply. A larger depth buys a slightly shorter output and costs time
 /// roughly linearly.
-fn compression_depth(level : Int) -> Int {
+fn compression_depth(level : Int32) -> Int32 {
   if level <= 0 {
     0
   } else if level <= 2 {
@@ -119,7 +119,7 @@ fn compression_depth(level : Int) -> Int {
 ///
 /// The cutoff matters more than the depth on repetitive input: a match of this
 /// length already compresses well, and continuing to search only costs time.
-fn compression_nice_length(level : Int) -> Int {
+fn compression_nice_length(level : Int32) -> Int32 {
   if level <= 0 {
     MATCH_MIN_LENGTH
   } else if level <= 2 {

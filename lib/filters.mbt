@@ -1,5 +1,5 @@
 ///|
-fn normalize_delta_distance(distance : Int) -> Int {
+fn normalize_delta_distance(distance : Int32) -> Int32 {
   if distance < 1 {
     1
   } else if distance > 256 {
@@ -10,7 +10,7 @@ fn normalize_delta_distance(distance : Int) -> Int {
 }
 
 ///|
-fn encode_delta(data : Bytes, distance : Int) -> Bytes {
+fn encode_delta(data : Bytes, distance : Int32) -> Bytes {
   let distance = normalize_delta_distance(distance)
   let output = Array(capacity=data.length())
   for i in 0..<data.length() {
@@ -21,7 +21,7 @@ fn encode_delta(data : Bytes, distance : Int) -> Bytes {
 }
 
 ///|
-fn decode_delta(data : Bytes, distance : Int) -> Bytes {
+fn decode_delta(data : Bytes, distance : Int32) -> Bytes {
   let distance = normalize_delta_distance(distance)
   let output = Array(capacity=data.length())
   for i in 0..<data.length() {
@@ -37,7 +37,7 @@ fn x86_test_msbyte(value : Byte) -> Bool {
 }
 
 ///|
-fn x86_mask_to_bit_number(mask : UInt) -> Int {
+fn x86_mask_to_bit_number(mask : UInt32) -> Int32 {
   match mask {
     0U => 0
     1U => 1
@@ -56,9 +56,9 @@ fn x86_bcj_filter(data : Bytes, encode : Bool) -> Bytes {
   for byte in data {
     buffer.push(byte)
   }
-  let mut prev_mask : UInt = 0U
-  let mut prev_pos : UInt = 0xFFFFFFFBU
-  let now_pos : UInt = 0U
+  let mut prev_mask : UInt32 = 0U
+  let mut prev_pos : UInt32 = 0xFFFFFFFBU
+  let now_pos : UInt32 = 0U
   let limit = data.length() - 5
   let mut buffer_pos = 0
   while buffer_pos <= limit {

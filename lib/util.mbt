@@ -9,8 +9,8 @@
 #doc(hidden)
 pub struct ByteCursor {
   data : Bytes
-  mut pos : Int
-  limit : Int
+  mut pos : Int32
+  limit : Int32
 }
 
 ///|
@@ -19,7 +19,7 @@ fn ByteCursor::new(data : Bytes) -> ByteCursor {
 }
 
 ///|
-fn ByteCursor::remaining(self : ByteCursor) -> Int {
+fn ByteCursor::remaining(self : ByteCursor) -> Int32 {
   self.limit - self.pos
 }
 
@@ -42,19 +42,19 @@ fn ByteCursor::read_byte(self : ByteCursor) -> Byte raise XzError {
 }
 
 ///|
-fn ByteCursor::read_u8(self : ByteCursor) -> Int raise XzError {
+fn ByteCursor::read_u8(self : ByteCursor) -> Int32 raise XzError {
   self.read_byte().to_int()
 }
 
 ///|
-fn ByteCursor::read_u16_be(self : ByteCursor) -> UInt raise XzError {
+fn ByteCursor::read_u16_be(self : ByteCursor) -> UInt32 raise XzError {
   let hi = self.read_byte().to_uint()
   let lo = self.read_byte().to_uint()
   (hi << 8) | lo
 }
 
 ///|
-fn ByteCursor::read_u32_le(self : ByteCursor) -> UInt raise XzError {
+fn ByteCursor::read_u32_le(self : ByteCursor) -> UInt32 raise XzError {
   let b0 = self.read_byte().to_uint()
   let b1 = self.read_byte().to_uint()
   let b2 = self.read_byte().to_uint()
@@ -84,7 +84,7 @@ fn ByteCursor::read_vli(self : ByteCursor) -> UInt64 raise XzError {
 ///|
 fn ByteCursor::read_bytes(
   self : ByteCursor,
-  length : Int,
+  length : Int32,
 ) -> Bytes raise XzError {
   // Written as `length > remaining` instead of `pos + length > data.length()`:
   // a corrupt stream can carry a huge length, and `pos + length` can then
@@ -102,7 +102,7 @@ fn ByteCursor::read_bytes(
 }
 
 ///|
-fn ByteCursor::skip(self : ByteCursor, length : Int) -> Unit raise XzError {
+fn ByteCursor::skip(self : ByteCursor, length : Int32) -> Unit raise XzError {
   if length < 0 || length > self.remaining() {
     raise Truncated("requested byte range is outside input")
   }
@@ -110,7 +110,7 @@ fn ByteCursor::skip(self : ByteCursor, length : Int) -> Unit raise XzError {
 }
 
 ///|
-fn usize_of_u64(value : UInt64, what : String) -> Int raise XzError {
+fn usize_of_u64(value : UInt64, what : String) -> Int32 raise XzError {
   if value > 2147483647UL {
     raise Unsupported("\{what} larger than 2 GiB is not supported")
   }
@@ -118,14 +118,14 @@ fn usize_of_u64(value : UInt64, what : String) -> Int raise XzError {
 }
 
 ///|
-fn push_u32_le(out : Array[Byte], value : UInt) -> Unit {
+fn push_u32_le(out : Array[Byte], value : UInt32) -> Unit {
   for shift in 0..<4 {
     out.push(((value >> (shift * 8)) & 0xFFU).to_byte())
   }
 }
 
 ///|
-fn push_u16_be(out : Array[Byte], value : UInt) -> Unit {
+fn push_u16_be(out : Array[Byte], value : UInt32) -> Unit {
   out.push(((value >> 8) & 0xFFU).to_byte())
   out.push((value & 0xFFU).to_byte())
 }
@@ -138,7 +138,7 @@ fn push_u64_le(out : Array[Byte], value : UInt64) -> Unit {
 }
 
 ///|
-fn push_u32_be(out : Array[Byte], value : UInt) -> Unit {
+fn push_u32_be(out : Array[Byte], value : UInt32) -> Unit {
   for shift in 0..<4 {
     out.push(((value >> ((3 - shift) * 8)) & 0xFFU).to_byte())
   }

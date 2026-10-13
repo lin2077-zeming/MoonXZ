@@ -41,7 +41,7 @@ const SPARC_FILTER_ID : UInt64 = 0x09UL
 const ARM64_FILTER_ID : UInt64 = 0x0AUL
 
 ///|
-const MAX_BLOCK_HEADER : Int = 1024
+const MAX_BLOCK_HEADER : Int32 = 1024
 
 ///|
 priv struct FilterSpec {
@@ -50,7 +50,7 @@ priv struct FilterSpec {
 }
 
 ///|
-fn decode_dict_size(code : Byte) -> Int raise XzError {
+fn decode_dict_size(code : Byte) -> Int32 raise XzError {
   let value = code.to_int()
   if value > 40 {
     raise Unsupported("invalid LZMA2 dictionary size code")
@@ -164,7 +164,7 @@ fn filter_mode_of(id : UInt64, properties : Bytes) -> FilterMode raise XzError {
 ///|
 fn parse_block_header(
   header : Bytes,
-) -> (Int?, Int?, Int, Array[FilterSpec]) raise XzError {
+) -> (Int32?, Int32?, Int32, Array[FilterSpec]) raise XzError {
   let length = header.length()
   if length < 8 || length > MAX_BLOCK_HEADER || length % 4 != 0 {
     raise Corrupt("invalid XZ block header length")
@@ -227,7 +227,7 @@ fn parse_block_header(
 }
 
 ///|
-fn scan_lzma2_size(data : Bytes, start : Int) -> Int raise XzError {
+fn scan_lzma2_size(data : Bytes, start : Int32) -> Int32 raise XzError {
   let cursor = ByteCursor::new(data)
   cursor.pos = start
   let mut result = 0
@@ -261,7 +261,7 @@ fn scan_lzma2_size(data : Bytes, start : Int) -> Int raise XzError {
 }
 
 ///|
-fn filter_dict_size(filters : Array[FilterSpec]) -> Int raise XzError {
+fn filter_dict_size(filters : Array[FilterSpec]) -> Int32 raise XzError {
   if filters.length() == 0 {
     raise Corrupt("XZ block has no filter chain")
   }
@@ -289,8 +289,8 @@ fn decode_filter_chain(
 ///|
 fn parse_index(
   cursor : ByteCursor,
-  expected : Array[(Int, Int)],
-) -> Int raise XzError {
+  expected : Array[(Int32, Int32)],
+) -> Int32 raise XzError {
   let index_start = cursor.pos
   let indicator = cursor.read_u8()
   if indicator != 0 {
@@ -325,7 +325,7 @@ fn parse_index(
 }
 
 ///|
-fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
+fn decode_xz(input : Bytes, max_output : Int32) -> Bytes raise XzError {
   let cursor = ByteCursor::new(input)
   let output : Array[Byte] = []
   while cursor.remaining() > 0 {
@@ -338,7 +338,7 @@ fn decode_xz(input : Bytes, max_output : Int) -> Bytes raise XzError {
       continue
     }
     let check_kind = read_stream_header(cursor)
-    let records : Array[(Int, Int)] = []
+    let records : Array[(Int32, Int32)] = []
     while true {
       if cursor.remaining() == 0 {
         raise Truncated("XZ stream ended before its index")
@@ -455,7 +455,7 @@ fn encode_xz_block(
   data : Bytes,
   options : CompressionOptions,
   check_kind : CheckKind,
-) -> (Bytes, Int, Int) {
+) -> (Bytes, Int32, Int32) {
   let out : Array[Byte] = []
   let filtered = encode_filter(data, options.filter)
   let lzma2 = encode_lzma2(filtered, options)
@@ -496,7 +496,7 @@ fn encode_xz_block(
 }
 
 ///|
-fn encode_index(records : Array[(Int, Int)]) -> Bytes {
+fn encode_index(records : Array[(Int32, Int32)]) -> Bytes {
   let index : Array[Byte] = [b'\x00']
   push_vli(index, records.length().to_uint64())
   for record in records {
@@ -511,7 +511,7 @@ fn encode_index(records : Array[(Int, Int)]) -> Bytes {
 }
 
 ///|
-fn encode_footer(index_size : Int, check_kind : CheckKind) -> Bytes {
+fn encode_footer(index_size : Int32, check_kind : CheckKind) -> Bytes {
   let footer : Array[Byte] = []
   push_u32_le(footer, (index_size / 4 - 1).reinterpret_as_uint())
   footer.push(b'\x00')
@@ -532,7 +532,7 @@ fn encode_xz(
 ) -> Bytes {
   let out : Array[Byte] = []
   append_bytes(out, encode_stream_header(check_kind))
-  let records : Array[(Int, Int)] = []
+  let records : Array[(Int32, Int32)] = []
   if data.length() > 0 {
     let (block, unpadded, uncompressed) = encode_xz_block(
       data, options, check_kind,

@@ -16,7 +16,7 @@
 /// Note that `@bench.monotonic_clock_end` reports microseconds.
 
 ///|
-fn bench_payload(kind : String, size : Int) -> Bytes {
+fn bench_payload(kind : String, size : Int32) -> Bytes {
   if kind == "repetitive" {
     let unit = b"MoonXZ compression benchmark payload line.\n"
     Bytes::repeat(unit, size / unit.length() + 1)[:size].to_owned()
@@ -31,7 +31,7 @@ fn bench_payload(kind : String, size : Int) -> Bytes {
 }
 
 ///|
-fn bench_pseudo_random(seed : UInt, length : Int) -> Bytes {
+fn bench_pseudo_random(seed : UInt32, length : Int32) -> Bytes {
   let out : Array[Byte] = Array(capacity=length)
   let mut state = if seed == 0U { 0x2545F491U } else { seed }
   for _ in 0..<length {
@@ -44,7 +44,7 @@ fn bench_pseudo_random(seed : UInt, length : Int) -> Bytes {
 }
 
 ///|
-fn bench_compress_once(input : Bytes, level : Int) -> Int {
+fn bench_compress_once(input : Bytes, level : Int32) -> Int32 {
   let options = @lib.CompressionOptions::new(level~)
   @lib.compress_with_options(input, options).length()
 }

@@ -5,21 +5,21 @@
 /// LZMA state transitions so that the output remains compatible with the
 /// decoder and with other XZ implementations.
 priv struct LzmaEncoder {
-  mut state : Int
-  mut rep0 : UInt
-  lc : Int
-  lp : Int
-  pb : Int
-  literal_probs : Array[UInt]
-  is_match : Array[UInt]
-  is_rep : Array[UInt]
-  len_choice : Array[UInt]
-  len_low : Array[UInt]
-  len_mid : Array[UInt]
-  len_high : Array[UInt]
-  pos_slot : Array[Array[UInt]]
-  pos_model : Array[Array[UInt]]
-  align : Array[UInt]
+  mut state : Int32
+  mut rep0 : UInt32
+  lc : Int32
+  lp : Int32
+  pb : Int32
+  literal_probs : Array[UInt32]
+  is_match : Array[UInt32]
+  is_rep : Array[UInt32]
+  len_choice : Array[UInt32]
+  len_low : Array[UInt32]
+  len_mid : Array[UInt32]
+  len_high : Array[UInt32]
+  pos_slot : Array[Array[UInt32]]
+  pos_model : Array[Array[UInt32]]
+  align : Array[UInt32]
 }
 
 ///|
@@ -32,12 +32,16 @@ fn LzmaEncoder::new() -> LzmaEncoder {
 ///
 /// The probability arrays depend on `lc + lp`, so they are sized from the
 /// requested properties instead of the usual fixed defaults.
-fn LzmaEncoder::with_properties(lc : Int, lp : Int, pb : Int) -> LzmaEncoder {
-  let pos_slot : Array[Array[UInt]] = Array(capacity=4)
+fn LzmaEncoder::with_properties(
+  lc : Int32,
+  lp : Int32,
+  pb : Int32,
+) -> LzmaEncoder {
+  let pos_slot : Array[Array[UInt32]] = Array(capacity=4)
   for _ in 0..<4 {
     pos_slot.push(make_probability_array(64))
   }
-  let pos_model : Array[Array[UInt]] = Array(capacity=10)
+  let pos_model : Array[Array[UInt32]] = Array(capacity=10)
   for i in 0..<10 {
     let slot = 4 + i
     let bits = (slot >> 1) - 1
@@ -83,7 +87,7 @@ fn LzmaEncoder::encode_literal(
   self : LzmaEncoder,
   range : RangeEncoder,
   data : Bytes,
-  position : Int,
+  position : Int32,
 ) -> Unit {
   let pos_state = position & ((1 << self.pb) - 1)
   range.encode_bit(self.is_match, self.state * 16 + pos_state, 0U)
@@ -94,7 +98,7 @@ fn LzmaEncoder::encode_literal(
   let base = literal_state * 0x300
   let value = data[position].to_int()
   let mut remaining = value
-  let mut symbol : UInt = 1U
+  let mut symbol : UInt32 = 1U
   if self.state >= 7 && self.rep0 < position.reinterpret_as_uint() {
     let mut match_byte = data[position - self.rep0.reinterpret_as_int() - 1].to_int()
     for _ in 0..<8 {
@@ -130,8 +134,8 @@ fn LzmaEncoder::encode_literal(
 fn LzmaEncoder::encode_length(
   self : LzmaEncoder,
   range : RangeEncoder,
-  length : Int,
-  pos_state : Int,
+  length : Int32,
+  pos_state : Int32,
 ) -> Unit {
   let offset = length - 2
   if offset < 8 {
@@ -168,8 +172,8 @@ fn LzmaEncoder::encode_length(
 fn LzmaEncoder::encode_distance(
   self : LzmaEncoder,
   range : RangeEncoder,
-  distance : Int,
-  length : Int,
+  distance : Int32,
+  length : Int32,
 ) -> Unit {
   let value = (distance - 1).reinterpret_as_uint()
   let pos_slot = if value < 4U {
@@ -199,9 +203,9 @@ fn LzmaEncoder::encode_distance(
 fn LzmaEncoder::encode_match(
   self : LzmaEncoder,
   range : RangeEncoder,
-  distance : Int,
-  length : Int,
-  position : Int,
+  distance : Int32,
+  length : Int32,
+  position : Int32,
 ) -> Unit {
   let pos_state = position & ((1 << self.pb) - 1)
   range.encode_bit(self.is_match, self.state * 16 + pos_state, 1U)

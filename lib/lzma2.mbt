@@ -8,8 +8,8 @@
 /// disagree.
 fn decode_lzma2(
   input : Bytes,
-  dict_size : Int,
-  max_output : Int,
+  dict_size : Int32,
+  max_output : Int32,
 ) -> Bytes raise XzError {
   let cursor = ByteCursor::new(input)
   let output : Array[Byte] = []

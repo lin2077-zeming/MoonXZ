@@ -20,7 +20,7 @@
 /// `lzma.compress(data, format=lzma.FORMAT_ALONE)`.
 
 ///|
-const LZMA1_HEADER_SIZE : Int = 13
+const LZMA1_HEADER_SIZE : Int32 = 13
 
 ///|
 /// Sentinel stored in the `.lzma` header when the uncompressed size is unknown
@@ -30,11 +30,11 @@ const LZMA1_UNKNOWN_SIZE : UInt64 = 0xFFFFFFFFFFFFFFFFUL
 ///|
 /// Parsed `.lzma` header.
 priv struct Lzma1Header {
-  lc : Int
-  lp : Int
-  pb : Int
-  dict_size : Int
-  uncompressed_size : Int?
+  lc : Int32
+  lp : Int32
+  pb : Int32
+  dict_size : Int32
+  uncompressed_size : Int32?
 }
 
 ///|
@@ -44,7 +44,7 @@ priv struct Lzma1Header {
 /// `2^n` or `2^n + 2^(n-1)` size, which is the set of dictionary sizes an
 /// encoder can actually select. Reproducing that rule keeps MoonXZ compatible
 /// with the same set of producer implementations.
-fn lzma1_normalize_dict_size(code : UInt) -> Int raise XzError {
+fn lzma1_normalize_dict_size(code : UInt32) -> Int32 raise XzError {
   if code == 0U {
     raise Corrupt("LZMA-alone dictionary size of zero is invalid")
   }
@@ -86,7 +86,7 @@ fn parse_lzma1_header(input : Bytes) -> Lzma1Header raise XzError {
   for i in 0..<8 {
     size_field = size_field | (cursor.read_byte().to_uint64() << (i * 8))
   }
-  let uncompressed_size : Int? = if size_field == LZMA1_UNKNOWN_SIZE {
+  let uncompressed_size : Int32? = if size_field == LZMA1_UNKNOWN_SIZE {
     None
   } else {
     Some(usize_of_u64(size_field, "LZMA-alone uncompressed size"))
@@ -101,7 +101,7 @@ fn parse_lzma1_header(input : Bytes) -> Lzma1Header raise XzError {
 /// decoder allocate without limit. Trailing bytes after the stream are
 /// tolerated, because some producers pad the output; a stream that ends early is
 /// reported as `Truncated`.
-fn decode_lzma1(input : Bytes, max_output : Int) -> Bytes raise XzError {
+fn decode_lzma1(input : Bytes, max_output : Int32) -> Bytes raise XzError {
   let header = parse_lzma1_header(input)
   match header.uncompressed_size {
     Some(size) => if size > max_output { raise OutputLimitExceeded(max_output) }
@@ -137,9 +137,9 @@ fn decode_lzma1(input : Bytes, max_output : Int) -> Bytes raise XzError {
 fn encode_lzma1_payload(
   data : Bytes,
   options : CompressionOptions,
-  lc : Int,
-  lp : Int,
-  pb : Int,
+  lc : Int32,
+  lp : Int32,
+  pb : Int32,
 ) -> Bytes {
   let range = RangeEncoder::new(data.length())
   let state = LzmaEncoder::with_properties(lc, lp, pb)
@@ -185,9 +185,9 @@ fn encode_lzma1_payload(
 fn encode_lzma1(
   data : Bytes,
   options : CompressionOptions,
-  lc : Int,
-  lp : Int,
-  pb : Int,
+  lc : Int32,
+  lp : Int32,
+  pb : Int32,
 ) -> Bytes raise XzError {
   if lc < 0 || lc > 8 || lp < 0 || lp > 4 || pb < 0 || pb > 4 || lc + lp > 4 {
     raise Unsupported("invalid LZMA properties: lc=\{lc} lp=\{lp} pb=\{pb}")

@@ -23,7 +23,7 @@ pub extend CheckKind with @debug.Debug::{to_repr}
 ///|
 /// The identifier this check uses in an XZ stream header: 0 for none, 1 for
 /// CRC32, 4 for CRC64 and 10 for SHA-256.
-pub fn CheckKind::id(self : CheckKind) -> Int {
+pub fn CheckKind::id(self : CheckKind) -> Int32 {
   match self {
     None => 0
     Crc32 => 1
@@ -35,7 +35,7 @@ pub fn CheckKind::id(self : CheckKind) -> Int {
 ///|
 /// The number of check bytes this algorithm stores after each block: 0, 4, 8 or
 /// 32 respectively.
-pub fn CheckKind::size(self : CheckKind) -> Int {
+pub fn CheckKind::size(self : CheckKind) -> Int32 {
   match self {
     None => 0
     Crc32 => 4
@@ -47,7 +47,7 @@ pub fn CheckKind::size(self : CheckKind) -> Int {
 ///|
 /// The check algorithm for a stream header identifier, or `None` when the
 /// identifier is not one the XZ format defines.
-pub fn CheckKind::from_id(id : Int) -> CheckKind? {
+pub fn CheckKind::from_id(id : Int32) -> CheckKind? {
   match id {
     0 => Some(None)
     1 => Some(Crc32)
@@ -59,7 +59,7 @@ pub fn CheckKind::from_id(id : Int) -> CheckKind? {
 
 ///|
 /// CRC32 as used by the XZ stream header and block header, over `data`.
-pub fn crc32(data : Bytes) -> UInt {
+pub fn crc32(data : Bytes) -> UInt32 {
   let mut crc = 0xFFFFFFFFU
   for byte in data {
     crc = crc ^ byte.to_uint()
@@ -92,23 +92,23 @@ pub fn crc64(data : Bytes) -> UInt64 {
 }
 
 ///|
-fn rotr32(value : UInt, bits : Int) -> UInt {
+fn rotr32(value : UInt32, bits : Int32) -> UInt32 {
   (value >> bits) | (value << (32 - bits))
 }
 
 ///|
 fn sha256_round(
-  a : UInt,
-  b : UInt,
-  c : UInt,
-  d : UInt,
-  e : UInt,
-  f : UInt,
-  g : UInt,
-  h : UInt,
-  k : UInt,
-  w : UInt,
-) -> (UInt, UInt, UInt, UInt, UInt, UInt, UInt, UInt) {
+  a : UInt32,
+  b : UInt32,
+  c : UInt32,
+  d : UInt32,
+  e : UInt32,
+  f : UInt32,
+  g : UInt32,
+  h : UInt32,
+  k : UInt32,
+  w : UInt32,
+) -> (UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32) {
   let big_s1 = rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25)
   let choose = (e & f) ^ (e.lnot() & g)
   let temp1 = h + big_s1 + choose + k + w
@@ -142,7 +142,7 @@ pub fn sha256(data : Bytes) -> Bytes {
   let mut h5 = 0x9B05688CU
   let mut h6 = 0x1F83D9ABU
   let mut h7 = 0x5BE0CD19U
-  let k : Array[UInt] = [
+  let k : Array[UInt32] = [
     0x428A2F98U, 0x71374491U, 0xB5C0FBCFU, 0xE9B5DBA5U, 0x3956C25BU, 0x59F111F1U,
     0x923F82A4U, 0xAB1C5ED5U, 0xD807AA98U, 0x12835B01U, 0x243185BEU, 0x550C7DC3U,
     0x72BE5D74U, 0x80DEB1FEU, 0x9BDC06A7U, 0xC19BF174U, 0xE49B69C1U, 0xEFBE4786U,

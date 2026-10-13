@@ -8,9 +8,9 @@
 priv struct RangeEncoder {
   output : Array[Byte]
   mut low : UInt64
-  mut range : UInt
+  mut range : UInt32
   mut cache : Byte
-  mut cache_size : Int
+  mut cache_size : Int32
 }
 
 ///|
@@ -18,7 +18,7 @@ priv struct RangeEncoder {
 /// compressed output is normally much smaller, but sizing for the input avoids
 /// growth entirely and costs only the allocation. It is required rather than
 /// optional because every caller knows the size it is about to encode.
-fn RangeEncoder::new(hint : Int) -> RangeEncoder {
+fn RangeEncoder::new(hint : Int32) -> RangeEncoder {
   let capacity = if hint < 1024 { 1024 } else { hint }
   {
     output: Array(capacity~),
@@ -59,9 +59,9 @@ fn RangeEncoder::normalize(self : RangeEncoder) -> Unit {
 ///|
 fn RangeEncoder::encode_bit(
   self : RangeEncoder,
-  probabilities : Array[UInt],
-  index : Int,
-  bit : UInt,
+  probabilities : Array[UInt32],
+  index : Int32,
+  bit : UInt32,
 ) -> Unit {
   let probability = probabilities[index]
   let bound = (self.range >> 11) * probability
@@ -79,8 +79,8 @@ fn RangeEncoder::encode_bit(
 ///|
 fn RangeEncoder::encode_direct_bits(
   self : RangeEncoder,
-  value : UInt,
-  bits : Int,
+  value : UInt32,
+  bits : Int32,
 ) -> Unit {
   for i in 0..<bits {
     let bit = (value >> (bits - 1 - i)) & 1U
@@ -95,12 +95,12 @@ fn RangeEncoder::encode_direct_bits(
 ///|
 fn RangeEncoder::encode_bit_tree(
   self : RangeEncoder,
-  probabilities : Array[UInt],
-  base : Int,
-  bits : Int,
-  value : UInt,
+  probabilities : Array[UInt32],
+  base : Int32,
+  bits : Int32,
+  value : UInt32,
 ) -> Unit {
-  let mut model : UInt = 1U
+  let mut model : UInt32 = 1U
   for i in 0..<bits {
     let bit = (value >> (bits - 1 - i)) & 1U
     self.encode_bit(probabilities, base + model.reinterpret_as_int(), bit)
@@ -111,12 +111,12 @@ fn RangeEncoder::encode_bit_tree(
 ///|
 fn RangeEncoder::encode_reverse_bit_tree(
   self : RangeEncoder,
-  probabilities : Array[UInt],
-  base : Int,
-  bits : Int,
-  value : UInt,
+  probabilities : Array[UInt32],
+  base : Int32,
+  bits : Int32,
+  value : UInt32,
 ) -> Unit {
-  let mut model : UInt = 1U
+  let mut model : UInt32 = 1U
   for i in 0..<bits {
     let bit = (value >> i) & 1U
     self.encode_bit(probabilities, base + model.reinterpret_as_int(), bit)

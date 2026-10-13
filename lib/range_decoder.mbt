@@ -2,9 +2,9 @@
 /// Range decoder used by the LZMA probability models.
 priv struct RangeDecoder {
   input : Bytes
-  mut pos : Int
-  mut range : UInt
-  mut code : UInt
+  mut pos : Int32
+  mut range : UInt32
+  mut code : UInt32
 }
 
 ///|
@@ -15,7 +15,7 @@ fn RangeDecoder::new(input : Bytes) -> RangeDecoder raise XzError {
   if input[0] != b'\x00' {
     raise Corrupt("LZMA range stream has a non-zero first byte")
   }
-  let mut code : UInt = 0U
+  let mut code : UInt32 = 0U
   for i in 1..<5 {
     code = (code << 8) | input[i].to_uint()
   }
@@ -43,9 +43,9 @@ fn RangeDecoder::normalize(self : RangeDecoder) -> Unit raise XzError {
 ///|
 fn RangeDecoder::decode_bit(
   self : RangeDecoder,
-  probabilities : Array[UInt],
-  index : Int,
-) -> UInt raise XzError {
+  probabilities : Array[UInt32],
+  index : Int32,
+) -> UInt32 raise XzError {
   let probability = probabilities[index]
   let bound = (self.range >> 11) * probability
   let bit = if self.code < bound {
@@ -65,9 +65,9 @@ fn RangeDecoder::decode_bit(
 ///|
 fn RangeDecoder::decode_direct_bits(
   self : RangeDecoder,
-  bits : Int,
-) -> UInt raise XzError {
-  let mut value : UInt = 0U
+  bits : Int32,
+) -> UInt32 raise XzError {
+  let mut value : UInt32 = 0U
   for _ in 0..<bits {
     self.range = self.range >> 1
     self.code = self.code - self.range
@@ -82,11 +82,11 @@ fn RangeDecoder::decode_direct_bits(
 ///|
 fn RangeDecoder::decode_bit_tree(
   self : RangeDecoder,
-  probabilities : Array[UInt],
-  base : Int,
-  bits : Int,
-) -> UInt raise XzError {
-  let mut model : UInt = 1U
+  probabilities : Array[UInt32],
+  base : Int32,
+  bits : Int32,
+) -> UInt32 raise XzError {
+  let mut model : UInt32 = 1U
   for _ in 0..<bits {
     model = (model << 1) |
       self.decode_bit(probabilities, base + model.reinterpret_as_int())
@@ -97,12 +97,12 @@ fn RangeDecoder::decode_bit_tree(
 ///|
 fn RangeDecoder::decode_reverse_bit_tree(
   self : RangeDecoder,
-  probabilities : Array[UInt],
-  base : Int,
-  bits : Int,
-) -> UInt raise XzError {
-  let mut model : UInt = 1U
-  let mut value : UInt = 0U
+  probabilities : Array[UInt32],
+  base : Int32,
+  bits : Int32,
+) -> UInt32 raise XzError {
+  let mut model : UInt32 = 1U
+  let mut value : UInt32 = 0U
   for bit_index in 0..<bits {
     let bit = self.decode_bit(probabilities, base + model.reinterpret_as_int())
     model = (model << 1) | bit

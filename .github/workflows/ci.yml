@@ -34,6 +34,29 @@ jobs:
       - name: Toolchain
         run: moon version --all
 
+      # The installers expose only "latest", so CI silently moves to a new
+      # compiler whenever one is released. That already happened once: moonc
+      # 0.10.15 started rewriting `Int` to `Int32` during fmt, so `moon fmt
+      # --check` failed on code that was clean under 0.10.14, and the failure
+      # looked like a formatting mistake rather than a toolchain jump. Failing
+      # loudly on an untested version makes the real cause obvious.
+      - name: Verify the toolchain version is one we support
+        shell: bash
+        run: |
+          set -euo pipefail
+          reported="$(moon version --all | sed -n 's/.*moonc \(v[^ ]*\).*/\1/p' | head -n1)"
+          echo "moonc reports: $reported"
+          case "$reported" in
+            v0.10.15*) echo "tested toolchain: ok" ;;
+            *)
+              echo "::error::moonc $reported is not a version this project has been verified against."
+              echo "Verified: v0.10.15+943464bfa. Re-verify locally with"
+              echo "  moon check --deny-warn --target all && moon test --deny-warn --target all && moon fmt --check"
+              echo "then update this guard and the toolchain note in README.md."
+              exit 1
+              ;;
+          esac
+
       - name: Update registry
         run: moon update
 

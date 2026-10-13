@@ -1,13 +1,13 @@
 ///|
-const LZMA_PROB_INIT : UInt = 1024U
+const LZMA_PROB_INIT : UInt32 = 1024U
 
 ///|
-fn make_probability_array(length : Int) -> Array[UInt] {
+fn make_probability_array(length : Int32) -> Array[UInt32] {
   Array::make(length, LZMA_PROB_INIT)
 }
 
 ///|
-fn reset_probability_array(probabilities : Array[UInt]) -> Unit {
+fn reset_probability_array(probabilities : Array[UInt32]) -> Unit {
   for i in 0..<probabilities.length() {
     probabilities[i] = LZMA_PROB_INIT
   }
@@ -15,44 +15,48 @@ fn reset_probability_array(probabilities : Array[UInt]) -> Unit {
 
 ///|
 priv struct LzmaDecoder {
-  mut state : Int
-  mut rep0 : UInt
-  mut rep1 : UInt
-  mut rep2 : UInt
-  mut rep3 : UInt
-  mut lc : Int
-  mut lp : Int
-  mut pb : Int
-  mut literal_probs : Array[UInt]
-  is_match : Array[UInt]
-  is_rep : Array[UInt]
-  is_rep_g0 : Array[UInt]
-  is_rep_g1 : Array[UInt]
-  is_rep_g2 : Array[UInt]
-  is_rep0_long : Array[UInt]
-  len_choice : Array[UInt]
-  len_low : Array[UInt]
-  len_mid : Array[UInt]
-  len_high : Array[UInt]
-  rep_len_choice : Array[UInt]
-  rep_len_low : Array[UInt]
-  rep_len_mid : Array[UInt]
-  rep_len_high : Array[UInt]
-  pos_slot : Array[Array[UInt]]
-  pos_model : Array[Array[UInt]]
-  align : Array[UInt]
+  mut state : Int32
+  mut rep0 : UInt32
+  mut rep1 : UInt32
+  mut rep2 : UInt32
+  mut rep3 : UInt32
+  mut lc : Int32
+  mut lp : Int32
+  mut pb : Int32
+  mut literal_probs : Array[UInt32]
+  is_match : Array[UInt32]
+  is_rep : Array[UInt32]
+  is_rep_g0 : Array[UInt32]
+  is_rep_g1 : Array[UInt32]
+  is_rep_g2 : Array[UInt32]
+  is_rep0_long : Array[UInt32]
+  len_choice : Array[UInt32]
+  len_low : Array[UInt32]
+  len_mid : Array[UInt32]
+  len_high : Array[UInt32]
+  rep_len_choice : Array[UInt32]
+  rep_len_low : Array[UInt32]
+  rep_len_mid : Array[UInt32]
+  rep_len_high : Array[UInt32]
+  pos_slot : Array[Array[UInt32]]
+  pos_model : Array[Array[UInt32]]
+  align : Array[UInt32]
 }
 
 ///|
-fn LzmaDecoder::new(lc : Int, lp : Int, pb : Int) -> LzmaDecoder raise XzError {
+fn LzmaDecoder::new(
+  lc : Int32,
+  lp : Int32,
+  pb : Int32,
+) -> LzmaDecoder raise XzError {
   if lc < 0 || lc > 8 || lp < 0 || lp > 4 || pb < 0 || pb > 4 || lc + lp > 4 {
     raise Unsupported("invalid LZMA properties: lc=\{lc} lp=\{lp} pb=\{pb}")
   }
-  let pos_slot : Array[Array[UInt]] = Array(capacity=4)
+  let pos_slot : Array[Array[UInt32]] = Array(capacity=4)
   for _ in 0..<4 {
     pos_slot.push(make_probability_array(64))
   }
-  let pos_model : Array[Array[UInt]] = Array(capacity=10)
+  let pos_model : Array[Array[UInt32]] = Array(capacity=10)
   for i in 0..<10 {
     let pos_slot_value = 4 + i
     let bits = (pos_slot_value >> 1) - 1
@@ -123,9 +127,9 @@ fn LzmaDecoder::reset_state(self : LzmaDecoder) -> Unit {
 ///|
 fn LzmaDecoder::set_properties(
   self : LzmaDecoder,
-  lc : Int,
-  lp : Int,
-  pb : Int,
+  lc : Int32,
+  lp : Int32,
+  pb : Int32,
 ) -> Unit raise XzError {
   if lc < 0 || lc > 8 || lp < 0 || lp > 4 || pb < 0 || pb > 4 || lc + lp > 4 {
     raise Unsupported("invalid LZMA properties: lc=\{lc} lp=\{lp} pb=\{pb}")
@@ -167,9 +171,9 @@ fn LzmaDecoder::update_state_short_rep(self : LzmaDecoder) -> Unit {
 fn LzmaDecoder::decode_length(
   self : LzmaDecoder,
   range : RangeDecoder,
-  pos_state : Int,
+  pos_state : Int32,
   is_rep : Bool,
-) -> Int raise XzError {
+) -> Int32 raise XzError {
   let choice = if is_rep { self.rep_len_choice } else { self.len_choice }
   let low = if is_rep { self.rep_len_low } else { self.len_low }
   let mid = if is_rep { self.rep_len_mid } else { self.len_mid }
@@ -188,8 +192,8 @@ fn LzmaDecoder::decode_length(
 fn LzmaDecoder::decode_distance(
   self : LzmaDecoder,
   range : RangeDecoder,
-  length : Int,
-) -> UInt raise XzError {
+  length : Int32,
+) -> UInt32 raise XzError {
   let len_state = if length - 2 < 4 { length - 2 } else { 3 }
   let pos_slot = range.decode_bit_tree(self.pos_slot[len_state], 0, 6)
   if pos_slot < 4U {
@@ -213,7 +217,7 @@ fn LzmaDecoder::decode_distance(
 /// An LZMA distance of `0xFFFFFFFF` is reserved as the end-of-stream marker: the
 /// max-distance match with the max-length value. It can never be a real match
 /// because such a distance is larger than any dictionary the format allows.
-fn is_end_marker(distance : UInt) -> Bool {
+fn is_end_marker(distance : UInt32) -> Bool {
   distance >= 0xFFFFFFFFU
 }
 
@@ -226,9 +230,9 @@ fn is_end_marker(distance : UInt) -> Bool {
 fn LzmaDecoder::match_available(
   self : LzmaDecoder,
   output : Array[Byte],
-  distance : UInt,
-  dict_start : Int,
-  dict_size : Int,
+  distance : UInt32,
+  dict_start : Int32,
+  dict_size : Int32,
 ) -> Bool {
   ignore(self)
   if is_end_marker(distance) {
@@ -243,10 +247,10 @@ fn LzmaDecoder::match_available(
 fn LzmaDecoder::copy_match(
   self : LzmaDecoder,
   output : Array[Byte],
-  distance : UInt,
-  length : Int,
-  dict_start : Int,
-  dict_size : Int,
+  distance : UInt32,
+  length : Int32,
+  dict_start : Int32,
+  dict_size : Int32,
 ) -> Unit raise XzError {
   if !self.match_available(output, distance, dict_start, dict_size) {
     if is_end_marker(distance) {
@@ -272,10 +276,10 @@ fn LzmaDecoder::decode_literal_unmatched(
   self : LzmaDecoder,
   range : RangeDecoder,
   output : Array[Byte],
-  literal_state : Int,
+  literal_state : Int32,
 ) -> Unit raise XzError {
   let base = literal_state * 0x300
-  let mut symbol : UInt = 1U
+  let mut symbol : UInt32 = 1U
   while symbol < 0x100U {
     symbol = (symbol << 1) |
       range.decode_bit(self.literal_probs, base + symbol.reinterpret_as_int())
@@ -289,12 +293,12 @@ fn LzmaDecoder::decode_literal_matched(
   self : LzmaDecoder,
   range : RangeDecoder,
   output : Array[Byte],
-  literal_state : Int,
-  match_byte : UInt,
+  literal_state : Int32,
+  match_byte : UInt32,
 ) -> Unit raise XzError {
   let base = literal_state * 0x300
-  let mut symbol : UInt = 1U
-  let mut matched : UInt = match_byte
+  let mut symbol : UInt32 = 1U
+  let mut matched : UInt32 = match_byte
   while symbol < 0x100U {
     let match_bit = (matched >> 7) & 1U
     matched = matched << 1
@@ -320,8 +324,8 @@ fn LzmaDecoder::decode_literal(
   self : LzmaDecoder,
   range : RangeDecoder,
   output : Array[Byte],
-  dict_start : Int,
-  dict_size : Int,
+  dict_start : Int32,
+  dict_size : Int32,
 ) -> Unit raise XzError {
   let position = output.length() - dict_start
   let previous = if position == 0 {
@@ -348,11 +352,11 @@ fn LzmaDecoder::decode_literal(
 fn LzmaDecoder::decode_chunk(
   self : LzmaDecoder,
   compressed : Bytes,
-  uncompressed_size : Int,
+  uncompressed_size : Int32,
   output : Array[Byte],
-  dict_start : Int,
-  dict_size : Int,
-  max_output : Int,
+  dict_start : Int32,
+  dict_size : Int32,
+  max_output : Int32,
 ) -> Unit raise XzError {
   let _ = decode_stream(
     self,
@@ -389,11 +393,11 @@ fn LzmaDecoder::decode_chunk(
 fn decode_stream(
   decoder : LzmaDecoder,
   compressed : Bytes,
-  target_size : Int?,
+  target_size : Int32?,
   output : Array[Byte],
-  dict_start : Int,
-  dict_size : Int,
-  max_output : Int,
+  dict_start : Int32,
+  dict_size : Int32,
+  max_output : Int32,
 ) -> (RangeDecoder, Bool) raise XzError {
   let range = RangeDecoder::new(compressed)
   let segment_start = output.length()
@@ -481,12 +485,12 @@ priv struct Lzma1Stream {
 /// exactly at that byte count, while `None` runs to the end marker.
 fn decode_lzma1_stream(
   compressed : Bytes,
-  lc : Int,
-  lp : Int,
-  pb : Int,
-  dict_size : Int,
-  target_size : Int?,
-  max_output : Int,
+  lc : Int32,
+  lp : Int32,
+  pb : Int32,
+  dict_size : Int32,
+  target_size : Int32?,
+  max_output : Int32,
 ) -> Lzma1Stream raise XzError {
   match target_size {
     Some(size) => if size > max_output { raise OutputLimitExceeded(max_output) }
@@ -504,7 +508,7 @@ fn decode_lzma1_stream(
 }
 
 ///|
-fn decode_lzma_properties(value : Int) -> (Int, Int, Int) raise XzError {
+fn decode_lzma_properties(value : Int32) -> (Int32, Int32, Int32) raise XzError {
   if value < 0 || value > 224 {
     raise Corrupt("invalid LZMA property byte")
   }

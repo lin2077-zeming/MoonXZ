@@ -6,7 +6,7 @@ pub(all) suberror XzError {
   Unsupported(String)
   Corrupt(String)
   ChecksumMismatch(String)
-  OutputLimitExceeded(Int)
+  OutputLimitExceeded(Int32)
 } derive(@debug.Debug)
 
 ///|

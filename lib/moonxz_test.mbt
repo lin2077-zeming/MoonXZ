@@ -231,7 +231,7 @@ test "streaming reader enforces output limit" {
 /// state before a unit is fully buffered will lose or duplicate data here.
 fn decode_streaming_one_byte_at_a_time(
   encoded : Bytes,
-  max_output : Int,
+  max_output : Int32,
 ) -> Bytes raise @lib.XzError {
   let decoder = @lib.XzStreamDecoder::new(max_output~)
   let parts : Array[Bytes] = []
@@ -539,7 +539,7 @@ test "corrupting the block check is always detected" {
 
 ///|
 /// Returns an independent copy of `data` with one byte replaced.
-fn copy_with_flipped_byte(data : Bytes, index : Int, value : Byte) -> Bytes {
+fn copy_with_flipped_byte(data : Bytes, index : Int32, value : Byte) -> Bytes {
   let out : Array[Byte] = []
   for i in 0..<data.length() {
     if i == index {
@@ -687,7 +687,7 @@ test "compression shrinks compressible input and stores incompressible input" {
 ///|
 /// A tiny deterministic generator. The tests only need reproducible pseudo-random
 /// bytes, so a plain xorshift keeps the suite dependency-free.
-fn pseudo_random_bytes(seed : UInt, length : Int) -> Bytes {
+fn pseudo_random_bytes(seed : UInt32, length : Int32) -> Bytes {
   let out : Array[Byte] = Array(capacity=length)
   let mut state = if seed == 0U { 0x2545F491U } else { seed }
   for _ in 0..<length {
@@ -708,7 +708,7 @@ fn pseudo_random_bytes(seed : UInt, length : Int) -> Bytes {
 /// with no valid structure at all, which is where length and offset arithmetic
 /// tends to go wrong.
 test "random bytes are rejected without panicking" {
-  let mut seed : UInt = 1U
+  let mut seed : UInt32 = 1U
   for length in [0, 1, 5, 12, 13, 32, 64, 200, 1000] {
     for _ in 0..<12 {
       let junk = pseudo_random_bytes(seed, length)
@@ -756,7 +756,7 @@ test "declared size cannot force unbounded work" {
 
 ///|
 /// Repeats `unit` until exactly `length` bytes are produced.
-fn repeat_to_length(unit : Bytes, length : Int) -> Bytes {
+fn repeat_to_length(unit : Bytes, length : Int32) -> Bytes {
   let out : Array[Byte] = []
   if unit.length() == 0 {
     return Bytes::make(length, b'\x00')
@@ -787,7 +787,7 @@ test "all filters round trip across lengths and content shapes" {
     @lib.FilterMode::Delta(1),
     @lib.FilterMode::Delta(8),
   ]
-  let lengths : Array[Int] = [
+  let lengths : Array[Int32] = [
     0, 1, 3, 4, 5, 8, 12, 16, 20, 24, 25, 26, 31, 32, 40, 64, 100, 200, 1000,
   ]
   let branches = @hex.decode("e800000000e9fbffffff90e801000000c3")

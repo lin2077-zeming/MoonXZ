@@ -7,7 +7,7 @@
 pub struct XzWriter {
   check_kind : CheckKind
   options : CompressionOptions
-  records : Array[(Int, Int)]
+  records : Array[(Int32, Int32)]
   mut started : Bool
   mut finished : Bool
 }
@@ -16,8 +16,8 @@ pub struct XzWriter {
 /// Creates a writer. `check_kind` selects the block check (CRC64 by default) and
 /// `options` the compression parameters.
 pub fn XzWriter::new(
-  check_kind? : CheckKind = Crc64,
-  options? : CompressionOptions = CompressionOptions::new(),
+  check_kind~ : CheckKind = Crc64,
+  options~ : CompressionOptions = CompressionOptions::new(),
 ) -> XzWriter {
   { check_kind, options, records: [], started: false, finished: false, }
 }
@@ -70,10 +70,10 @@ pub fn XzWriter::finish(self : XzWriter) -> Bytes raise XzError {
 /// Incremental XZ reader over an in-memory compressed byte sequence.
 pub struct XzReader {
   cursor : ByteCursor
-  max_output : Int
-  mut output_so_far : Int
+  max_output : Int32
+  mut output_so_far : Int32
   mut check_kind : CheckKind?
-  records : Array[(Int, Int)]
+  records : Array[(Int32, Int32)]
   mut stream_open : Bool
   mut done : Bool
 }
@@ -96,22 +96,22 @@ pub struct XzReader {
 /// the memory profile bounded.
 pub struct XzStreamDecoder {
   window : Array[Byte]
-  mut consumed : Int
-  max_output : Int
-  mut output_so_far : Int
+  mut consumed : Int32
+  max_output : Int32
+  mut output_so_far : Int32
   mut check_kind : CheckKind?
-  records : Array[(Int, Int)]
+  records : Array[(Int32, Int32)]
   mut stream_open : Bool
   mut done : Bool
   mut input_finished : Bool
   /// Number of complete streams seen; padding is only legal after the first.
-  mut streams_seen : Int
+  mut streams_seen : Int32
 }
 
 ///|
 /// Creates a chunk-fed decoder. `max_output` bounds the total decoded size, as
 /// in `XzReader`.
-pub fn XzStreamDecoder::new(max_output? : Int = 1 << 30) -> XzStreamDecoder {
+pub fn XzStreamDecoder::new(max_output~ : Int32 = 1 << 30) -> XzStreamDecoder {
   {
     window: [],
     consumed: 0,
@@ -134,7 +134,7 @@ pub fn XzStreamDecoder::supply(self : XzStreamDecoder, data : Bytes) -> Unit {
 
 ///|
 /// Number of compressed bytes held but not yet consumed.
-pub fn XzStreamDecoder::buffered(self : XzStreamDecoder) -> Int {
+pub fn XzStreamDecoder::buffered(self : XzStreamDecoder) -> Int32 {
   self.window.length() - self.consumed
 }
 
@@ -385,7 +385,7 @@ pub fn XzStreamDecoder::next(self : XzStreamDecoder) -> Bytes? raise XzError {
 ///|
 /// Creates a reader over an in-memory XZ stream. `max_output` bounds the total
 /// decoded size across all blocks, so a hostile stream cannot exhaust memory.
-pub fn XzReader::new(input : Bytes, max_output? : Int = 1 << 30) -> XzReader {
+pub fn XzReader::new(input : Bytes, max_output~ : Int32 = 1 << 30) -> XzReader {
   {
     cursor: ByteCursor::new(input),
     max_output,

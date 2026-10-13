@@ -15,12 +15,12 @@ const LZMA2_PROPERTIES : Byte = b'\x5D'
 /// but the correct bound depends on the 21-bit/16-bit split of the two size
 /// fields and needs care: sizes at or above 2^20 spill into the control byte's
 /// reset flags. See `docs/DESIGN.md` for the current state.
-const LZMA2_STORE_CHUNK : Int = 65536
+const LZMA2_STORE_CHUNK : Int32 = 65536
 
 ///|
 /// Largest uncompressed size a compressed chunk may declare. Bounded by the
 /// 16-bit compressed-size field, since a chunk's compressed bytes must fit 65536.
-const LZMA2_COMPRESSED_CHUNK : Int = 65536
+const LZMA2_COMPRESSED_CHUNK : Int32 = 65536
 
 ///|
 /// Encodes `data` as a complete LZMA2 chunk sequence.
@@ -94,12 +94,12 @@ fn encode_lzma2(data : Bytes, options : CompressionOptions) -> Bytes {
 ///|
 fn encode_lzma_chunk(
   data : Bytes,
-  start : Int,
-  size : Int,
-  previous : Array[Int],
-  depth : Int,
-  nice_length : Int,
-  dictionary_size : Int,
+  start : Int32,
+  size : Int32,
+  previous : Array[Int32],
+  depth : Int32,
+  nice_length : Int32,
+  dictionary_size : Int32,
 ) -> Bytes {
   let range = RangeEncoder::new(size)
   let state = LzmaEncoder::new()
@@ -124,7 +124,7 @@ fn encode_lzma_chunk(
 }
 
 ///|
-fn dictionary_size_code(size : Int) -> Byte {
+fn dictionary_size_code(size : Int32) -> Byte {
   let desired = if size < 4096 {
     4096
   } else if size > 1 << 30 {

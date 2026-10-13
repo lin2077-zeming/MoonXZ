@@ -17,15 +17,15 @@
 /// recorded in `docs/DESIGN.md`.
 pub(all) enum FilterMode {
   None
-  Delta(Int)
+  Delta(Int32)
   X86
 }
 
 ///|
 /// Compression parameters for the LZMA2 encoder.
 pub(all) struct CompressionOptions {
-  level : Int
-  dict_size : Int
+  level : Int32
+  dict_size : Int32
   filter : FilterMode
 }
 
@@ -36,9 +36,9 @@ pub(all) struct CompressionOptions {
 /// levels 1 through 9 use the range encoder with progressively deeper hash
 /// chains. `dict_size` is clamped to 4 KiB through 1 GiB.
 pub fn CompressionOptions::new(
-  level? : Int = 6,
-  dict_size? : Int = 8 * 1024 * 1024,
-  filter? : FilterMode = None,
+  level~ : Int32 = 6,
+  dict_size~ : Int32 = 8 * 1024 * 1024,
+  filter~ : FilterMode = None,
 ) -> CompressionOptions {
   let level = if level < 0 { 0 } else if level > 9 { 9 } else { level }
   let dict_size = if dict_size < 4096 {
@@ -93,7 +93,7 @@ pub fn decompress(data : Bytes) -> Bytes raise XzError {
 /// Decompresses XZ data while refusing outputs larger than `max_output`.
 pub fn decompress_with_limit(
   data : Bytes,
-  max_output : Int,
+  max_output : Int32,
 ) -> Bytes raise XzError {
   if max_output < 0 {
     raise OutputLimitExceeded(max_output)
@@ -120,7 +120,7 @@ pub fn decompress_lzma1(data : Bytes) -> Bytes raise XzError {
 /// `max_output`.
 pub fn decompress_lzma1_with_limit(
   data : Bytes,
-  max_output : Int,
+  max_output : Int32,
 ) -> Bytes raise XzError {
   if max_output < 0 {
     raise OutputLimitExceeded(max_output)
@@ -136,10 +136,10 @@ pub fn decompress_lzma1_with_limit(
 /// encoder uses, and they are the only combination MoonXZ writes.
 pub fn compress_lzma1(
   data : Bytes,
-  options? : CompressionOptions = CompressionOptions::new(),
-  lc? : Int = 3,
-  lp? : Int = 0,
-  pb? : Int = 2,
+  options~ : CompressionOptions = CompressionOptions::new(),
+  lc~ : Int32 = 3,
+  lp~ : Int32 = 0,
+  pb~ : Int32 = 2,
 ) -> Bytes raise XzError {
   encode_lzma1(data, options, lc, lp, pb)
 }
@@ -147,7 +147,7 @@ pub fn compress_lzma1(
 ///|
 /// Returns the LZMA properties recorded by a `.lzma` header as `(lc, lp, pb)`.
 /// Useful for reporting why a stream cannot be decoded.
-pub fn lzma1_properties(data : Bytes) -> (Int, Int, Int) raise XzError {
+pub fn lzma1_properties(data : Bytes) -> (Int32, Int32, Int32) raise XzError {
   let header = parse_lzma1_header(data)
   (header.lc, header.lp, header.pb)
 }
@@ -155,6 +155,6 @@ pub fn lzma1_properties(data : Bytes) -> (Int, Int, Int) raise XzError {
 ///|
 /// Returns the uncompressed size recorded by a `.lzma` header, or `None` when
 /// the header stores the unknown-size sentinel.
-pub fn lzma1_declared_size(data : Bytes) -> Int? raise XzError {
+pub fn lzma1_declared_size(data : Bytes) -> Int32? raise XzError {
   parse_lzma1_header(data).uncompressed_size
 }
