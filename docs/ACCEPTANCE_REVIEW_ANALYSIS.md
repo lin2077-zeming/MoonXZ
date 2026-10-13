@@ -244,7 +244,29 @@ description: 对 MoonBit 比赛项目做验收级审查。当用户要求验收�
 
 光改文档不够——文档还会再漂移。所以把能机械化的部分做成了脚本。
 
-### `scripts/self_audit.py`
+### 可复用的通用 skill
+
+本文第四节的重建版已抽成**项目无关**的独立 skill，供其他 MoonBit 项目参考：
+
+```text
+docs/skills/moonbit-acceptance-review/
+├── SKILL.md                       完整方法（声明对账、跨实现验证、边界取法…）
+├── acceptance_audit.py            通用审计脚本，项目差异由配置提供
+├── acceptance_audit.example.json  配置样例（逐项带注释）
+└── README.md                      安装与设计原则
+```
+
+通用脚本把项目相关的部分（用哪个外部实现、哪些边界值、空输入与畸形输入怎么测）
+外置为 `acceptance_audit.json` 中的四个适配项，脚本本身不含任何 XZ 相关逻辑。
+在本仓库上实测：**26 项检查，25 ok / 0 failed / 1 unverified**（未通过项是
+"工作区未提交"，提交后即消失）。
+
+其中每个检查都做过**差分验证**——故意制造它该发现的问题，确认它确实 `FAIL`，
+再还原。例如把负向漂移检查指向一条真实存在的申报书声明，它如期报
+`FAIL drift: '明确不做' ... still claimed but lib/streaming.mbt matches ...`，
+说明该检查真的在工作而不是恒真。**一条永远通过的检查比没有检查更糟。**
+
+### `scripts/self_audit.py`（本仓库专用）
 
 20 项检查，全部产出可执行证据；**不能机械验证的列为 UNVERIFIED 而不是默认为真**。
 本次运行结果：**20 ok / 0 failed / 0 unverified**。

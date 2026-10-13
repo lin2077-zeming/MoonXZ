@@ -1,0 +1,58 @@
+{
+  "_comment": "Example config for acceptance_audit.py. Copy to your repo root as acceptance_audit.json and adapt. Every value here is project-specific; the script itself is not. The values below are taken from a real XZ/LZMA MoonBit project, which is why they mention xz/lzma - replace the commands with your own adapters.",
+
+  "module": "owner/name",
+  "toolchain_min": "0.10.14",
+
+  "_comment_version": "Patterns must capture the stated version. Point them at every place the version appears.",
+  "version_locations": [
+    { "file": "README.md", "pattern": "当前版本是\\s*`([^`]+)`" }
+  ],
+
+  "_comment_constants": "If the version is duplicated in source, capture it here. Hardcoded copies are what drift.",
+  "version_constants": [
+    { "file": "cmd/main/main.mbt", "pattern": "const CLI_VERSION\\s*:\\s*String\\s*=\\s*\"([^\"]+)\"" }
+  ],
+
+  "_comment_counts": "Only list files that actually state a count. A README that lists coverage instead of a number needs no entry - and inventing one would leave this permanently UNVERIFIED.",
+  "count_claims": [
+    { "file": "项目申报书.md", "pattern": "(\\d+)\\s*个测试", "source": "moon test" }
+  ],
+
+  "_comment_api": "api_reference_pattern captures API names as the docs write them; they are then looked up in the generated interface.",
+  "doc_files": ["README.md", "项目申报书.md"],
+  "api_reference_pattern": "`@moonxz\\.([A-Za-z_][\\w]*)",
+  "interface_dirs": ["lib", "cmd"],
+
+  "ignored_paths": ["_build/", "target/", ".mooncakes/"],
+
+  "strict_commands": [
+    ["moon", "check", "--deny-warn", "--target", "all"],
+    ["moon", "test", "--deny-warn", "--target", "all"],
+    ["moon", "fmt", "--check"],
+    ["moon", "bundle", "--all"]
+  ],
+
+  "_comment_negative": "Each 'not supported' claim, plus the code that would make it false. This is how drift is caught in the direction people forget to check.",
+  "negative_claims": [
+    {
+      "file": "项目申报书.md",
+      "text": "不提供逐字节增量接口",
+      "refuted_by": { "file": "lib/streaming.mbt", "pattern": "pub fn XzStreamDecoder::supply" }
+    }
+  ],
+
+  "_comment_adapters": "The four entries below are the project-specific half. Write a small script for each; the skill explains what each must demonstrate.",
+  "empty_input_required": true,
+  "empty_input_check": ["python3", "scripts/audit_empty_input.py"],
+
+  "boundary_cases": [
+    {
+      "name": "sizes straddling the field-width boundary",
+      "command": ["python3", "scripts/audit_boundary.py"]
+    }
+  ],
+
+  "external_interop": ["python3", "scripts/interop.py"],
+  "fuzz": ["python3", "scripts/fuzz_cli.py", ".", "100"]
+}

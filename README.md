@@ -291,6 +291,24 @@ moon test --target all --deny-warn
 用于交叉验证 MoonXZ 的解码结果；`scripts/interop.py` 同时验证反方向，即
 Python `lzma` 能正确解压 MoonXZ 写出的数据。
 
+### 验收级自查
+
+除单元测试外，仓库带一个**验收级自查脚本**，检查"文档声称的"与"代码实际做的"
+是否一致——这类落差单元测试查不到：
+
+```text
+python scripts/self_audit.py .
+```
+
+它核对版本号与测试数量在各文档间是否一致、文档点名的 API 是否真实存在、
+"不做"声明是否已被代码推翻、外部 liblzma 的边界尺寸能否精确解码、空输入能否
+往返、畸形输入是否会 panic。输出 `PASS` / `FAIL` / `UNVERIFIED` 三种状态，
+**`UNVERIFIED` 不算通过**。
+
+这个方法的通用版本（项目无关、含可配置的审计脚本）已抽成独立 skill：
+`docs/skills/moonbit-acceptance-review/`，可供其他 MoonBit 项目参考。
+设计动机与失败案例复盘见 `docs/ACCEPTANCE_REVIEW_ANALYSIS.md`。
+
 ## 项目结构
 
 ```text

@@ -1,0 +1,56 @@
+{
+  "_comment": "Config for the generic acceptance audit (docs/skills/moonbit-acceptance-review/acceptance_audit.py). Every value here is project-specific; the script is not.",
+
+  "module": "lin2077-zeming/moonxz",
+  "toolchain_min": "0.10.14",
+
+  "version_locations": [
+    { "file": "README.md", "pattern": "当前版本是\\s*`([^`]+)`" },
+    { "file": "README.md", "pattern": "当前已发布版本为\\s*`([^`]+)`" }
+  ],
+
+  "version_constants": [
+    { "file": "cmd/main/main.mbt", "pattern": "const CLI_VERSION\\s*:\\s*String\\s*=\\s*\"([^\"]+)\"" }
+  ],
+
+  "_comment_counts": "README deliberately lists coverage rather than a count, so there is nothing to check there.",
+  "count_claims": [
+    { "file": "项目申报书.md", "pattern": "(\\d+)\\s*个测试", "source": "moon test" },
+    { "file": "Progress.md", "pattern": "(\\d+)\\s*个测试", "source": "moon test" }
+  ],
+
+  "_comment_negative": "Refuted-by patterns look for the code that would make each 'not supported' claim false.",
+  "negative_claims": [
+    {
+      "file": "项目申报书.md",
+      "text": "不提供逐字节增量接口",
+      "refuted_by": { "file": "lib/streaming.mbt", "pattern": "pub fn XzStreamDecoder::supply" }
+    }
+  ],
+
+  "doc_files": ["README.md", "项目申报书.md"],
+  "api_reference_pattern": "`@moonxz\\.([A-Za-z_][\\w]*)",
+  "interface_dirs": ["lib", "cmd"],
+
+  "ignored_paths": ["_build/", "target/", ".mooncakes/", "MoonTera/"],
+
+  "strict_commands": [
+    ["moon", "check", "--deny-warn", "--target", "all"],
+    ["moon", "test", "--deny-warn", "--target", "all"],
+    ["moon", "fmt", "--check"],
+    ["moon", "bundle", "--all"]
+  ],
+
+  "empty_input_required": true,
+  "empty_input_check": ["python", "scripts/audit_empty_input.py"],
+
+  "boundary_cases": [
+    {
+      "name": "liblzma sizes straddling the 16-bit low half",
+      "command": ["python", "scripts/audit_boundary.py"]
+    }
+  ],
+
+  "external_interop": ["python", "scripts/interop.py"],
+  "fuzz": ["python", "scripts/fuzz_cli.py", ".", "60"]
+}
