@@ -4,20 +4,23 @@ MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目�
 MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
 无关、无 FFI、可直接发布到 mooncakes.io。
 
-当前版本是 `0.4.3`，需要在 `moonc` 0.10.14 或更高版本上构建，并在
-`moonc v0.10.15+943464bfa` 上完整验证过（`check --deny-warn`、四个后端的
-`test --deny-warn`、`fmt --check`、`bundle --all`、互操作脚本）。
-`0.4.1` 及更早的版本在新工具链上会因 `implicit_impl_as_method` 报错，请勿使用。
-解压端支持标准
-XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，以及 delta 与 x86 BCJ filter；压缩端具备
-LZMA2 range encoder、hash chain match finder、压缩级别和字典大小参数，并可写出
-`.lzma`。默认压缩级别为 6，字典大小为 8 MiB；级别 0 保留规范的未压缩 LZMA2
-块模式。
+当前版本是 `0.4.4`。解压端支持标准 XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，以及
+delta 与 x86 BCJ filter；压缩端具备 LZMA2 range encoder、hash chain match finder、
+压缩级别和字典大小参数，并可写出 `.lzma`。默认压缩级别为 6，字典大小为 8 MiB；
+级别 0 保留规范的未压缩 LZMA2 块模式。
 
-> **请勿使用 `0.4.2` 及更早版本解压外部产生的 XZ 文件。** 这些版本在解析 LZMA2
-> 未压缩长度字段时存在进位错误，128 KiB / 256 KiB / 1 MiB 等常见体积的合法
-> Python / `xz-utils` 输出会解码失败；`0.4.2` 及更早版本的长度校验还存在整数
-> 溢出。`0.4.3` 已修复全部四项验收反馈问题，详见 `CHANGELOG.md`。
+> **请使用 `0.4.4`。**
+>
+> - `0.4.2` 及更早版本**有解码缺陷**：解析 LZMA2 未压缩长度字段时存在进位错误，
+>   128 KiB / 256 KiB / 1 MiB 等常见体积的合法 Python / `xz-utils` 输出会解码
+>   失败；同一批版本的长度校验还存在整数溢出。请勿用它们解压外部产生的 XZ 文件
+> - `0.4.3` 已修复上述全部缺陷，功能与 `0.4.4` 相同，仅缺少 `Int` → `Int32`
+>   的写法对齐（`moonc` 0.10.15 起的格式化风格）
+> - `0.4.1` 及更早版本还会在新工具链上因 `implicit_impl_as_method` 构建失败
+>
+> 构建要求 `moonc` 0.10.14 或更高；`0.4.4` 已在 `moonc v0.10.15+943464bfa` 上
+> 完整验证（`check --deny-warn`、四个后端的 `test --deny-warn`、`fmt --check`、
+> `bundle --all`、CLI 示例、基准与互操作脚本）。详见 `CHANGELOG.md`。
 
 ## 功能状态
 
@@ -45,7 +48,7 @@ LZMA2 range encoder、hash chain match finder、压缩级别和字典大小参�
 
 ## 安装与使用
 
-发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.3`）：
+发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.4`）：
 
 ```text
 moon add lin2077-zeming/moonxz

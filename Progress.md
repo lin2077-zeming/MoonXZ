@@ -6,7 +6,7 @@
 
 - 项目名：MoonXZ
 - 模块名：`lin2077-zeming/moonxz`
-- 当前版本：`0.4.3`（已发布至 mooncakes.io）
+- 当前版本：`0.4.4`（已发布至 mooncakes.io）
 - GitHub 仓库：https://github.com/lin2077-zeming/MoonXZ
 - 当前分支：`main`
 - 项目方向：纯 MoonBit 实现的 XZ / LZMA / LZMA2 压缩、解压、校验和工具库
@@ -20,7 +20,7 @@
 多目标构建、流式 API、文件 CLI，并与 Python `lzma` 做双向互操作验证。
 GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
-当前 `0.4.3` 已正式发布至 mooncakes.io。**第一次验收未通过，四个问题已全部
+当前 `0.4.4` 已正式发布至 mooncakes.io。**第一次验收未通过，四个问题已全部
 复现并修好**，详见 CHANGELOG 的 0.4.3 节：
 
 1. **LZMA2 未压缩长度字段进位错误**（严重）：18 位长度字段先给低位加一、再与
@@ -225,28 +225,22 @@ GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
 ### 已完成
 
-- 正式执行 `moon publish` → 当前线上版本 `0.4.2`
+- 正式执行 `moon publish` → 当前线上版本 `0.4.4`
 - 在 mooncakes.io 确认可见且可安装 → `yanked=False`，全新工程可 `moon add`
-- 统一 README、CLI banner、申报书、本文件的版本号 → 均为 `0.4.2`
+- 统一 README、CLI banner、申报书、本文件的版本号 → 均为 `0.4.4`
 
-### 已知遗留：mooncakes 页面上的 README 快照仍是旧的
+### 已解决：mooncakes 页面上的 README 快照
 
-mooncakes 在**发布时**抓取 README 快照，已发布版本无法修改，因此
-`lin2077-zeming/moonxz@0.4.2` 页面与 `Download zip` 里的 `README.md` 中
-"当前版本"仍写着 `0.4.1`（`moon.mod` 内的 `version` 和页面标题都是 `0.4.2`，
-实际安装到的也是 0.4.2）。
+mooncakes 在**发布时**抓取 README 快照，已发布版本无法修改，所以 `0.4.2` 页面
+一度显示旧文案（"当前版本 `0.4.1`"）。后续每次发布都会重新抓取，`0.4.3` 与
+`0.4.4` 的页面/tarball 已与仓库一致，该问题不再存在。
 
 已核对确认，不是猜测：
 
 ```text
-本地 README.md            -> 当前版本是 `0.4.2`
-远端 tarball 内 README.md -> 当前版本是 `0.4.1`
-远端 tarball 内 moon.mod  -> version = "0.4.2"
+远端 tarball 内 moon.mod   -> version = "0.4.4"
+远端 tarball 内 README.md  -> 当前版本是 `0.4.4`
 ```
-
-处理方式（当前决定）：**不为此专门发新版本**，改在仓库 README 顶部加"版本号
-提示"说明该差异。若之后决定消除该差异，唯一办法是发布新版本（例如 `0.4.3`，
-代码与 0.4.2 完全一致，仅让 mooncakes 重新抓取 README）。
 
 ### 可选后续
 
