@@ -245,8 +245,12 @@ fn scan_lzma2_size(data : Bytes, start : Int) -> Int raise XzError {
     if control < 0x80 {
       raise Corrupt("reserved LZMA2 chunk control byte")
     }
-    let _uncompressed_size = ((control & 0x1F) << 16) |
-      (cursor.read_u16_be().reinterpret_as_int() + 1)
+    // Same 18-bit split as in `decode_lzma2`: join the halves before the +1, or
+    // a low half of 0xFFFF carries into the high bits and is OR-ed away.
+    let _uncompressed_size = (
+        ((control & 0x1F) << 16) | cursor.read_u16_be().reinterpret_as_int()
+      ) +
+      1
     let compressed_size = cursor.read_u16_be().reinterpret_as_int() + 1
     if (control & 0x40) != 0 {
       let _ = cursor.read_byte()

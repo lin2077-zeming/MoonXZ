@@ -4,19 +4,17 @@ MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目�
 MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
 无关、无 FFI、可直接发布到 mooncakes.io。
 
-当前版本是 `0.4.2`，需要在 `moonc` 0.10.14 或更高版本上构建。`0.4.1` 及更早的
+当前版本是 `0.4.3`，需要在 `moonc` 0.10.14 或更高版本上构建。`0.4.1` 及更早的
 版本在新工具链上会因 `implicit_impl_as_method` 报错，请勿使用。解压端支持标准
 XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，以及 delta 与 x86 BCJ filter；压缩端具备
 LZMA2 range encoder、hash chain match finder、压缩级别和字典大小参数，并可写出
 `.lzma`。默认压缩级别为 6，字典大小为 8 MiB；级别 0 保留规范的未压缩 LZMA2
 块模式。
 
-> **版本号提示**：mooncakes.io 的 0.4.2 页面（以及 `Download zip` 下载到的
-> `README.md`）中"当前版本"一栏仍显示 `0.4.1`。原因是 mooncakes 在发布时抓取
-> README 快照，且已发布版本无法修改，而本文件是在 0.4.2 发布之后才修正的。
-> **实际安装到的就是 0.4.2**：可执行 `moon add lin2077-zeming/moonxz@0.4.2`，
-> 或查看 tarball 内 `moon.mod` 的 `version = "0.4.2"` 核实。以本仓库的 README
-> 和 `CHANGELOG.md` 为准。
+> **请勿使用 `0.4.2` 及更早版本解压外部产生的 XZ 文件。** 这些版本在解析 LZMA2
+> 未压缩长度字段时存在进位错误，128 KiB / 256 KiB / 1 MiB 等常见体积的合法
+> Python / `xz-utils` 输出会解码失败；`0.4.2` 及更早版本的长度校验还存在整数
+> 溢出。`0.4.3` 已修复全部四项验收反馈问题，详见 `CHANGELOG.md`。
 
 ## 功能状态
 
@@ -39,11 +37,12 @@ LZMA2 range encoder、hash chain match finder、压缩级别和字典大小参�
 | x86 BCJ filter | 支持 |
 | PowerPC / IA64 / ARM / ARM-Thumb / SPARC / ARM64 BCJ filter | 未实现，返回 `Unsupported` |
 | 流式 Reader / Writer | 支持 |
+| 有界窗口流式解码（`XzStreamDecoder`） | 支持 |
 | 文件 CLI | 支持 |
 
 ## 安装与使用
 
-发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.2`）：
+发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.3`）：
 
 ```text
 moon add lin2077-zeming/moonxz
@@ -216,8 +215,33 @@ native、level 6、1 MiB 输入的参考数据（同一台机器上与 Python `l
   解压速度则稳定在 35–54 MiB/s。
 - **半重复与随机数据的输出与 `liblzma` 基本持平**；重复数据仍有约 5 倍差距，
   原因是 LZMA2 压缩块的未压缩上限当前保守地停在 64 KiB，限制了可用匹配距离。
-  提高该上限可以把它降到约 1.3 倍，但会暴露一个解码器缺陷，因此暂未启用；
-  实测数据与入手点记录在 `docs/DESIGN.md`。
+  提高该上限可以把它降到约 1.3 倍，但会让编码器写出的块超出本库解码器目前能
+  正确处理的形状，因此暂未启用；实测数据与入手点记录在 `docs/DESIGN.md`。
+
+## 流式解码与内存占用
+
+`XzStreamDecoder` 面向输入分块到达、且不想把整条流放进内存的场景：
+
+```text
+let decoder = @moonxz.XzStreamDecoder::new()
+// 每次拿到一段压缩数据就喂进去，然后尽量取出已解出的块
+decoder.supply(chunk)
+loop decoder.next() {
+  Some(block) => handle(block)
+  None => break          // 需要更多输入，除非已经调用 finish_input
+}
+// 输入结束时调用，之后 next 返回 None 即为流被截断
+decoder.finish_input()
+```
+
+`next` 返回 `None` 表示"当前缓冲里还没有完整的单元"；调用 `finish_input` 之后
+同一个 `None` 表示输入提前结束。已解码块占用的字节会被丢弃，所以常驻的只是
+待处理输入加上单个块，而不是整条流。逐字节喂入也是支持的（含拼接流与 stream
+padding），测试里就是这么验证的。
+
+**边界说明**：`moonbitlang/x/fs` 只提供整文件读写，没有追加或流式写入接口，
+因此文件 CLI 仍需要把压缩输入与解码输出各持有一份；流式解码器本身不依赖任何
+运行时或 I/O，它解决的是库侧的窗口问题，不是 CLI 侧的文件缓冲问题。
 
 ## 验证
 
@@ -236,15 +260,20 @@ moon test --target all --deny-warn
 - 空输入和普通输入 roundtrip
 - None / CRC32 / CRC64 / SHA-256 四种 block check
 - 多 LZMA2 chunk、压缩级别和字典大小组合，含 65536 字节 chunk 边界两侧
+- liblzma 生成的 128 KiB / 256 KiB / 1 MiB 单块 fixture（控制字节 `0xE1` /
+  `0xE3` / `0xEF`），覆盖 18 位未压缩长度字段的进位路径
 - 重复数据和不可压缩数据的自动回退
 - delta 和 x86 BCJ filter 的标准向量（liblzma 生成）
 - 未实现 BCJ filter 明确返回 `Unsupported`
-- `.lzma` 两种头形式的解码、编码绕回与损坏头部拒绝
+- `.lzma` 两种头形式的解码、编码绕回与损坏头部拒绝，含空输入的编码
+- 超长声明长度字段必须被拒绝且不得 panic
 - 逐字节截断：任何前缀都不得解出原始数据
 - 单字节全量变异：任何变异都不得 panic，也不得静默产出与原文不同的数据
 - 伪随机垃圾输入：与变异测试互补，覆盖完全没有合法结构的输入
 - 声明膨胀：头部声明超大输出时必须在输出限制处失败
 - 流式 Writer/Reader 的多 block 读写
+- 流式 `XzStreamDecoder` 逐字节喂入与一次性解码逐字节一致，含拼接流与 padding；
+  另覆盖截断检测与输出上限
 - 文件 CLI 压缩、解压和内容一致性
 - Python `lzma` 生成的压缩 XZ 测试向量
 - 输出大小限制错误
@@ -272,7 +301,7 @@ lib/lzma_encoder.mbt     LZMA 编码状态机
 lib/lzma2_encoder.mbt    LZMA2 压缩块编码和回退
 lib/match_finder.mbt     Hash chain match finder
 lib/filters.mbt          Delta 与 x86 BCJ filter
-lib/streaming.mbt        流式 Reader / Writer
+lib/streaming.mbt        流式 Reader / Writer 与有界窗口解码器
 lib/check.mbt            CRC32 / CRC64 / SHA-256
 lib/util.mbt             字节游标、VLI 和序列化辅助
 cmd/main/                可运行 CLI

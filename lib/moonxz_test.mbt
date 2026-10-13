@@ -223,6 +223,205 @@ test "streaming reader enforces output limit" {
 }
 
 ///|
+/// Feeds `encoded` to a streaming decoder one byte at a time and returns the
+/// concatenation of every block it yielded.
+///
+/// One-byte feeds are the hardest case for a windowed parser: every internal
+/// read lands on a partial field at some point, so a decoder that advances its
+/// state before a unit is fully buffered will lose or duplicate data here.
+fn decode_streaming_one_byte_at_a_time(
+  encoded : Bytes,
+  max_output : Int,
+) -> Bytes raise @lib.XzError {
+  let decoder = @lib.XzStreamDecoder::new(max_output~)
+  let parts : Array[Bytes] = []
+  for i in 0..<encoded.length() {
+    decoder.supply(encoded[i:i + 1].to_owned())
+    while true {
+      match decoder.next() {
+        Some(value) => parts.push(value)
+        None => break
+      }
+    }
+  }
+  decoder.finish_input()
+  while true {
+    match decoder.next() {
+      Some(value) => parts.push(value)
+      None => break
+    }
+  }
+  if !decoder.is_done() {
+    raise @lib.Truncated("streaming decoder did not reach the footer")
+  }
+  if decoder.buffered() != 0 {
+    raise @lib.Corrupt(
+      "streaming decoder left \{decoder.buffered()} bytes buffered of \{encoded.length()}",
+    )
+  }
+  let out : Array[Byte] = []
+  for part in parts {
+    for byte in part {
+      out.push(byte)
+    }
+  }
+  Bytes::from_array(out)
+}
+
+///|
+test "streaming decoder matches one-shot decoding byte for byte" {
+  let writer = @lib.XzWriter::new()
+  let first = writer.write(Bytes::repeat(b"first block payload ", 300))
+  let second = writer.write(Bytes::repeat(b"second block payload ", 300))
+  let tail = writer.finish()
+  let encoded = first + second + tail
+  let expected = @lib.decompress(encoded)
+  let streamed = decode_streaming_one_byte_at_a_time(encoded, 1 << 20)
+  @test.assert_eq(streamed.length(), expected.length())
+  @test.assert_eq(streamed, expected)
+}
+
+///|
+test "streaming decoder handles an empty stream" {
+  let writer = @lib.XzWriter::new()
+  let encoded = writer.finish()
+  let streamed = decode_streaming_one_byte_at_a_time(encoded, 1 << 20)
+  @test.assert_eq(streamed, b"")
+}
+
+///|
+test "streaming decoder handles concatenated streams and padding" {
+  let writer = @lib.XzWriter::new()
+  let first = writer.write(b"alpha") + writer.finish()
+  let second = @lib.compress(b"beta")
+  // Four zero bytes between streams are legal stream padding.
+  let encoded = first + b"\x00\x00\x00\x00" + second
+  let expected = @lib.decompress(encoded)
+  let streamed = decode_streaming_one_byte_at_a_time(encoded, 1 << 20)
+  @test.assert_eq(streamed, expected)
+}
+
+///|
+test "streaming decoder reports truncation instead of hanging" {
+  let encoded = @lib.compress(Bytes::repeat(b"truncate me ", 200))
+  let cut = encoded[0:encoded.length() - 8].to_owned()
+  let decoder = @lib.XzStreamDecoder::new()
+  decoder.supply(cut)
+  decoder.finish_input()
+  let mut produced = 0
+  try {
+    while true {
+      match decoder.next() {
+        Some(value) => produced += value.length()
+        None => break
+      }
+    }
+    // Running out of input mid-stream must not look like a clean end.
+    if decoder.is_done() {
+      @test.fail("a truncated stream must not report completion")
+    }
+  } catch {
+    @lib.Truncated(_) => ()
+    @lib.ChecksumMismatch(_) => ()
+    _ => @test.fail("unexpected error for a truncated stream")
+  }
+  ignore(produced)
+}
+
+///|
+test "streaming decoder enforces the output limit" {
+  let writer = @lib.XzWriter::new()
+  let encoded = writer.write(b"0123456789") + writer.finish()
+  let decoder = @lib.XzStreamDecoder::new(max_output=4)
+  decoder.supply(encoded)
+  decoder.finish_input()
+  try {
+    let _ = decoder.next()
+    @test.fail("expected OutputLimitExceeded")
+  } catch {
+    @lib.OutputLimitExceeded(_) => ()
+    _ => @test.fail("unexpected error")
+  }
+}
+
+///|
+/// Decodes a liblzma-produced stream whose single LZMA2 chunk declares an
+/// uncompressed size at or above 64 KiB.
+///
+/// These are the fixtures that exposed the size-field carry bug. liblzma packs
+/// (size - 1) as 5 bits in the control byte plus 16 low bits, and for any size
+/// that is not a multiple of 65536 the low half is 0xFFFF: 128 KiB arrives as
+/// control 0xE1 with a low half of 0xFFFF. Adding one to the low half before
+/// joining the halves carries into bit 16 and is then OR-ed away, so the
+/// declared size came out one high-half unit too large - 0x30000 instead of
+/// 0x20000 for 128 KiB - and the chunk then disagreed with its own output.
+///
+/// Every size here is above the 64 KiB store bound, so all three go through the
+/// compressed-chunk path that the earlier tests never reached.
+test "decode Python lzma fixtures with chunks at or above 64 KiB" {
+  // 128 KiB, control byte 0xE1.
+  let fixture_128 = @hex.decode(
+    "fd377a585a000004e6d6b4460200210116000000742fe5a3e1ef9500775d00269becdc582d64a5c3203af8e1810d8e16790d7610026c5a06bb08f3ed937634ccd39e1ac96967808912ae31e46fa83b274f92ba23e6744c1d2beb491b0b5be6e1ab3db023b0a3caa814645ce22697c5655e14ef7a9d45546b7d30275b3081dee2ff4468e735ff768f7c6f6c18be8407124e4b62bab60000001bf3af680526d3bf0001930196df070032c37834b1c467fb020000000004595a",
+  )
+  // 256 KiB, control byte 0xE3.
+  let fixture_256 = @hex.decode(
+    "fd377a585a000004e6d6b4460200210116000000742fe5a3e3df0d00895d00269becdc582d64a5c3203af8e1810d8e16790d7610026c5a06bb08f3ed937634ccd39e1ac96967808912ae31e46fa83b274f92ba23e6744c1d2beb491b0b5be6e1ab3db023b0a3caa814645ce22697c5655e14ef7a9d45546b7d30275b3081dee2ff4468e735ff768f7c6f6c18be8407124e8b0e384d84a5c2505491229706035fc9703ac2adcfcd0000000000eb147216db8713c90001a5018ebe0f00ed733af2b1c467fb020000000004595a",
+  )
+  // 1 MiB, control byte 0xEF.
+  let fixture_1m = @hex.decode(
+    "fd377a585a000004e6d6b4460200210116000000742fe5a3ef7bfb00f45d00269becdc582d64a5c3203af8e1810d8e16790d7610026c5a06bb08f3ed937634ccd39e1ac96967808912ae31e46fa83b274f92ba23e6744c1d2beb491b0b5be6e1ab3db023b0a3caa814645ce22697c5655e14ef7a9d45546b7d30275b3081dee2ff4468e735ff768f7c6f6c18be8407124e8b0e384d84a5c2505491229706035fc9703b14c0323798a51501a5e8a3092aecaaff5a26ac720c1692a7be398f24e1709ea7235fec28cb85d195988a7e2a91f22775f719c006984d98fdd8afd5900fc42553f8f591363105a5b0ee6fc1704d470cd19111aaad601dbaceb127185c5986e9665258bee976ac59e4e55b04fddc401a0000fc35e6921f92148400019002fcf73d000a1520b2b1c467fb020000000004595a",
+  )
+  // The payload liblzma compressed: a 30-byte phrase repeated, which makes the
+  // expected value exact without embedding a megabyte of bytes.
+  let phrase = b"MoonXZ liblzma chunk fixture.\n"
+  @test.assert_eq(phrase.length(), 30)
+  @test.assert_eq(@lib.decompress(fixture_128), Bytes::repeat(phrase, 4229))
+  @test.assert_eq(@lib.decompress(fixture_256), Bytes::repeat(phrase, 8457))
+  @test.assert_eq(@lib.decompress(fixture_1m), Bytes::repeat(phrase, 33826))
+}
+
+///|
+/// An empty input must round-trip through `.lzma` like every other format.
+///
+/// The encoder used to reject it outright, which made `compress_lzma1` the only
+/// entry point that could not encode its own empty case. An empty payload is
+/// legal: the header records a size of zero and the range encoder is finished,
+/// and both liblzma and this decoder accept the result.
+test "lzma1 encodes and decodes an empty input" {
+  let encoded = @lib.compress_lzma1(b"")
+  @test.assert_eq(@lib.decompress_lzma1(encoded), b"")
+  // The header must be present and declare a zero size, not be omitted.
+  @test.assert_eq(@lib.lzma1_declared_size(encoded), Some(0))
+}
+
+///|
+/// Malformed inputs must be rejected, never panicked on.
+///
+/// The cases target the declared-length fields. A length read from the stream is
+/// used to bound a copy, and the old check was written `pos + length >
+/// data.length()`: a hostile length can make that sum overflow into a negative
+/// number, which passes the check and lets the copy read past the buffer. The
+/// check is now written as `length > remaining` so no term can overflow. These
+/// inputs declare lengths far beyond the buffer to exercise that path, and the
+/// requirement is simply that each one raises a handled error.
+test "oversized declared lengths are rejected without panicking" {
+  // A valid LZMA-alone header declaring an absurd uncompressed size.
+  let huge_size : Array[Byte] = [
+    b'\x5D', b'\x00', b'\x00', b'\x80', b'\x00', b'\xFF', b'\xFF', b'\xFF', b'\xFF',
+    b'\xFF', b'\xFF', b'\xFF', b'\x7F',
+  ]
+  let mut rejected = 0
+  let attempt = fn() -> Unit raise @lib.XzError {
+    let _ = @lib.decompress_lzma1(Bytes::from_array(huge_size))
+    ()
+  }
+  attempt() catch {
+    _ => rejected += 1
+  }
+  @test.assert_eq(rejected, 1)
+}
+
+///|
 test "output limit is enforced" {
   let encoded = @lib.compress(b"0123456789")
   try {

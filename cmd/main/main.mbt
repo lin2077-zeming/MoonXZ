@@ -143,12 +143,48 @@ fn run_compress_file(
 }
 
 ///|
+/// Decompresses a file using the chunk-fed decoder.
+///
+/// `moonbitlang/x/fs` exposes only whole-file reads and writes, so this cannot
+/// write each block straight to disk: doing so would need an append primitive
+/// the dependency does not have, and rewriting the file per block would be
+/// quadratic. What the streaming decoder does buy is that the parser no longer
+/// needs the entire stream up front, and decoded blocks are appended into one
+/// buffer instead of being staged as a per-block array first - so there is a
+/// single growing destination rather than many intermediate ones.
+///
+/// Measured peak memory is reported by `scripts/memcheck.py`, which is how the
+/// remaining gap (output is still buffered before the single write) is kept
+/// visible rather than assumed away.
 fn run_decompress_file(input_path : String, output_path : String) -> Unit raise {
   let input = @fs.read_file_to_bytes(input_path)
-  let reader = @moonxz.XzReader::new(input)
+  let decoder = @moonxz.XzStreamDecoder::new()
+  // Feeding in slices keeps the decoder's own window bounded rather than
+  // letting it hold every byte ever supplied.
+  let feed_chunk = 1 << 16
   let output : Array[Byte] = []
+  let mut offset = 0
+  while offset < input.length() {
+    let end = if offset + feed_chunk > input.length() {
+      input.length()
+    } else {
+      offset + feed_chunk
+    }
+    decoder.supply(input[offset:end].to_owned())
+    offset = end
+    while true {
+      match decoder.next() {
+        Some(block) =>
+          for byte in block {
+            output.push(byte)
+          }
+        None => break
+      }
+    }
+  }
+  decoder.finish_input()
   while true {
-    match reader.read_block() {
+    match decoder.next() {
       Some(block) =>
         for byte in block {
           output.push(byte)

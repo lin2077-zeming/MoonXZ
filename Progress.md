@@ -1,12 +1,12 @@
 # MoonXZ Progress
 
-更新时间：2026-09-24
+更新时间：2026-09-25
 
 ## 项目定位
 
 - 项目名：MoonXZ
 - 模块名：`lin2077-zeming/moonxz`
-- 当前版本：`0.4.2`（已发布至 mooncakes.io）
+- 当前版本：`0.4.3`（已发布至 mooncakes.io）
 - GitHub 仓库：https://github.com/lin2077-zeming/MoonXZ
 - 当前分支：`main`
 - 项目方向：纯 MoonBit 实现的 XZ / LZMA / LZMA2 压缩、解压、校验和工具库
@@ -20,14 +20,40 @@
 多目标构建、流式 API、文件 CLI，并与 Python `lzma` 做双向互操作验证。
 GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
-当前 `0.4.2` 已正式发布至 mooncakes.io，可直接 `moon add` 安装。发布版本已针对
-新工具链做兼容修复：`moonc` 0.10.14 起 `derive(Eq, @debug.Debug)` 推导出的实现
-必须显式声明，`0.4.1` 及更早版本在新工具链上会因 `implicit_impl_as_method` 报错，
-因此当前应以 `0.4.2` 为准。
+当前 `0.4.3` 已正式发布至 mooncakes.io。**第一次验收未通过，四个问题已全部
+复现并修好**，详见 CHANGELOG 的 0.4.3 节：
 
-## 本轮（0.4.2）新增内容
+1. **LZMA2 未压缩长度字段进位错误**（严重）：18 位长度字段先给低位加一、再与
+   高位相或，低位为 `0xFFFF` 时进位被按位或丢弃，128 KiB / 256 KiB / 1 MiB 的
+   合法 Python XZ 全部解码失败。`lib/lzma2.mbt` 与 `lib/xz.mbt` 两处同源错误
+2. **`lib/util.mbt` 长度校验溢出与越界**（严重）：`pos + length` 可溢出成负数
+   而通过检查，随后按该长度读取会越界。改为 `length > remaining`
+3. **`.lzma` 空输入无法编码**：原先直接拒绝，现已支持
+4. **Reader 与文件 CLI 全量读入**：新增有界窗口的 `XzStreamDecoder`，
+   支持逐字节喂入；库侧窗口问题已解决，CLI 侧因 `moonbitlang/x/fs` 无追加接口
+   仍需持有整份输入输出，已在 README 中如实标注
 
-### 工具链兼容
+`0.4.1` 及更早版本在新工具链上会因 `implicit_impl_as_method` 报错，`0.4.2` 及
+更早版本存在上述解码错误，**请勿使用 0.4.2 及更早版本解压外部产生的 XZ 文件**。
+
+## 本轮（0.4.3）新增内容
+
+### 缺陷修复（源自第一次验收反馈）
+
+- LZMA2 长度字段进位错误，两处
+- `read_bytes` / `skip` 的长度校验整数溢出
+- `.lzma` 空输入编码
+- 新增 `XzStreamDecoder` 有界窗口流式解码，支持分块与逐字节喂入、拼接流、
+  stream padding，并明确区分"需要更多输入"与"输入被截断"
+- 测试数 38 → 46，新增 liblzma 128 KiB / 256 KiB / 1 MiB 单块 fixture
+  （控制字节 `0xE1` / `0xE3` / `0xEF`）、空 `.lzma`、超长声明长度拒绝、
+  流式解码逐字节一致性、流式截断与输出上限
+- `scripts/interop.py` 增加 128 KiB / 256 KiB 不可压缩用例
+- 新增 `scripts/repro_lzma2_chunk.py` 与 `scripts/fuzz_cli.py`
+- 修正 README 中两处自相矛盾：功能表只列 3 个未实现 filter（实际 6 个）、
+  标题误写"只交付 x86 一个 BCJ filter"（实际 delta 与 x86 两个）
+
+### 工具链兼容（0.4.2 已完成）
 
 - 新工具链 `moonc v0.10.14+7d59c7ec9` 下 `moon check --deny-warn` 报出
   `implicit_impl_as_method`：`CheckKind`、`XzError` 的 `Eq` / `@debug.Debug`

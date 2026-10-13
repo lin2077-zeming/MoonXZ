@@ -61,6 +61,14 @@ def main() -> int:
             "mixed-compressibility",
             bytes(65530) + bytes((i * 31 + 5) & 0xFF for i in range(200)) + bytes(65530),
         ),
+        # Incompressible data at 128 KiB and 256 KiB. liblzma covers these with
+        # uncompressed chunks followed by a compressed tail chunk, so multiple
+        # chunk sizes appear in one stream. This is the shape that exposed the
+        # 18-bit uncompressed-size carry bug: every chunk whose size is not a
+        # multiple of 65536 gets a low half of 0xFFFF, and adding one to that
+        # half before joining the halves carried into bit 16.
+        ("incompressible-128k", bytes((i * 7 + 13) & 0xFF for i in range(131072))),
+        ("incompressible-256k", bytes((i * 11 + 3) & 0xFF for i in range(262144))),
     ]
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)

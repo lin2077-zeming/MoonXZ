@@ -55,8 +55,10 @@ fn encode_lzma2(data : Bytes, options : CompressionOptions) -> Bytes {
       )
     }
     // Take the compressed form only when it is smaller and representable.
+    // `compressed.length() + 3 < limit` is written as a subtraction so the
+    // comparison cannot overflow for a large chunk.
     if compressed.length() > 0 &&
-      compressed.length() + 3 < limit &&
+      compressed.length() < limit - 3 &&
       compressed.length() <= LZMA2_STORE_CHUNK {
       let uncompressed_minus_one = limit - 1
       let control = (if first { 0xE0 } else { 0xC0 }) |

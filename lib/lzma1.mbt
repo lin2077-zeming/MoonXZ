@@ -177,6 +177,11 @@ fn encode_lzma1_payload(
 /// The header records the exact uncompressed size, so the payload needs no end
 /// marker. This matches what `xz --format=lzma` writes when the size is known
 /// and keeps the output byte-comparable with other implementations.
+///
+/// An empty input is legal: the header declares a size of zero and the range
+/// encoder is still finished, so the stream is a valid LZMA-alone file that
+/// decodes back to nothing. Rejecting it would make `compress_lzma1` the one
+/// entry point that cannot round-trip its own empty case.
 fn encode_lzma1(
   data : Bytes,
   options : CompressionOptions,
@@ -186,9 +191,6 @@ fn encode_lzma1(
 ) -> Bytes raise XzError {
   if lc < 0 || lc > 8 || lp < 0 || lp > 4 || pb < 0 || pb > 4 || lc + lp > 4 {
     raise Unsupported("invalid LZMA properties: lc=\{lc} lp=\{lp} pb=\{pb}")
-  }
-  if data.length() == 0 {
-    raise Unsupported("LZMA-alone encoding of an empty input is not supported")
   }
   let header : Array[Byte] = []
   header.push(((pb * 5 + lp) * 9 + lc).to_byte())

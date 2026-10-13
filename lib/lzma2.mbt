@@ -36,8 +36,16 @@ fn decode_lzma2(
     if control < 0x80 {
       raise Corrupt("reserved LZMA2 chunk control byte")
     }
-    let uncompressed_size = ((control & 0x1F) << 16) |
-      (cursor.read_u16_be().reinterpret_as_int() + 1)
+    // The size is an 18-bit field stored as 5 bits in the control byte followed
+    // by 16 bits, encoding (uncompressed size - 1). The two halves must be
+    // joined *before* the +1: adding one to the low half first lets a low half
+    // of 0xFFFF carry into the high bits and be OR-ed away, which corrupts the
+    // size for every chunk whose size is not a multiple of 65536. liblzma emits
+    // exactly such chunks from 128 KiB upward, so decoding its output failed
+    // even though all size fields were legal.
+    let size_minus_one = ((control & 0x1F) << 16) |
+      cursor.read_u16_be().reinterpret_as_int()
+    let uncompressed_size = size_minus_one + 1
     let compressed_size = cursor.read_u16_be().reinterpret_as_int() + 1
     let reset_mode = control & 0x60
     let properties = if reset_mode >= 0x40 {

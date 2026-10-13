@@ -1,24 +1,31 @@
 ///|
 /// A small checked cursor over an immutable byte sequence.
+///
+/// `limit` is the first index that must not be read. It defaults to the end of
+/// `data`, and a streaming caller lowers it to the boundary of the bytes it has
+/// actually received. Carrying the boundary here means a read that stops short
+/// reports `Truncated` from one place, so a chunk-fed parser can distinguish
+/// "wait for more input" from "the stream is malformed".
 #doc(hidden)
 pub struct ByteCursor {
   data : Bytes
   mut pos : Int
+  limit : Int
 }
 
 ///|
 fn ByteCursor::new(data : Bytes) -> ByteCursor {
-  { data, pos: 0, }
+  { data, pos: 0, limit: data.length(), }
 }
 
 ///|
 fn ByteCursor::remaining(self : ByteCursor) -> Int {
-  self.data.length() - self.pos
+  self.limit - self.pos
 }
 
 ///|
 fn ByteCursor::peek_byte(self : ByteCursor) -> Byte raise XzError {
-  if self.pos >= self.data.length() {
+  if self.pos >= self.limit {
     raise Truncated("unexpected end of input")
   }
   self.data[self.pos]
@@ -26,7 +33,7 @@ fn ByteCursor::peek_byte(self : ByteCursor) -> Byte raise XzError {
 
 ///|
 fn ByteCursor::read_byte(self : ByteCursor) -> Byte raise XzError {
-  if self.pos >= self.data.length() {
+  if self.pos >= self.limit {
     raise Truncated("unexpected end of input")
   }
   let value = self.data[self.pos]
@@ -79,7 +86,11 @@ fn ByteCursor::read_bytes(
   self : ByteCursor,
   length : Int,
 ) -> Bytes raise XzError {
-  if length < 0 || self.pos + length > self.data.length() {
+  // Written as `length > remaining` instead of `pos + length > data.length()`:
+  // a corrupt stream can carry a huge length, and `pos + length` can then
+  // overflow to a negative value that passes the check, letting the loop below
+  // index past the end of the buffer. Subtracting keeps every term in range.
+  if length < 0 || length > self.remaining() {
     raise Truncated("requested byte range is outside input")
   }
   let out : Array[Byte] = []
@@ -92,7 +103,7 @@ fn ByteCursor::read_bytes(
 
 ///|
 fn ByteCursor::skip(self : ByteCursor, length : Int) -> Unit raise XzError {
-  if length < 0 || self.pos + length > self.data.length() {
+  if length < 0 || length > self.remaining() {
     raise Truncated("requested byte range is outside input")
   }
   self.pos += length
