@@ -1,7 +1,7 @@
 # MoonXZ compatibility matrix
 
 This document pins the external contract MoonXZ claims and links each claim to
-an executable check. It describes the repository version `0.4.5`.
+an executable check. It describes the repository version `0.4.6`.
 
 ## Normative references
 
@@ -57,7 +57,7 @@ patterns. `lzma-mbt` writes an XZ Stream with a legal `ARM64 -> LZMA2` filter
 chain and CRC64. The committed fixture was decoded byte-for-byte by official XZ
 Utils 5.8.3 before it entered the corpus.
 
-MoonXZ does not implement that filter in `0.4.5`. The conformance runner therefore
+MoonXZ does not implement that filter in `0.4.6`. The conformance runner therefore
 expects `Unsupported` from MoonXZ and exact plaintext from `lzma-mbt`. This is a
 version boundary with a future implementation path, not a claim that the XZ
 filter is invalid or permanently excluded.
@@ -68,7 +68,7 @@ filter is invalid or permanently excluded.
 `XzStreamDecoder`. The fixture is produced by Python liblzma and omits the
 optional compressed size in the Block Header, which is the common external XZ
 shape. This case exposed a real `0.4.4` defect: an incomplete block could be
-reported as `Truncated` before more bytes arrived. `0.4.5` fixes the scanner path
+reported as `Truncated` before more bytes arrived. `0.4.5` fixed the scanner path
 and keeps the fixture as a regression test.
 
 ## Reproducing the evidence

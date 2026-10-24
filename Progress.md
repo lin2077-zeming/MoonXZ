@@ -6,7 +6,7 @@
 
 - 项目名：MoonXZ
 - 模块名：`lin2077-zeming/moonxz`
-- 当前版本：`0.4.5`（已发布至 mooncakes.io）
+- 当前版本：`0.4.6`（已发布至 mooncakes.io）
 - GitHub 仓库：https://github.com/lin2077-zeming/MoonXZ
 - 当前分支：`main`
 - 项目方向：纯 MoonBit XZ/LZMA 实现 + 一致性与差分验证工具包
@@ -242,7 +242,7 @@ Python `lzma` 做双向互操作验证。GitHub Actions 已在 Windows、Ubuntu�
 
 ### 必做
 
-- 发布 `0.4.5`，并在 mooncakes 页面确认 tarball 与仓库一致
+- 发布 `0.4.6`，并在 mooncakes 页面确认 tarball 与仓库一致
 - 用更新后的 `项目申报书.md` 重新提交报名问卷
 - 向组委会确认 10 月 20 日驳回邮件与 10 月 21 日通过邮件的最终审批状态
 

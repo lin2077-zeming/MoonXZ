@@ -10,7 +10,7 @@ pub fn check_bytes(CheckKind, Bytes) -> Bytes
 
 pub fn compress(Bytes) -> Bytes
 
-pub fn compress_lzma1(Bytes, options? : CompressionOptions, lc? : Int, lp? : Int, pb? : Int) -> Bytes raise XzError
+pub fn compress_lzma1(Bytes, options? : CompressionOptions, lc? : Int32, lp? : Int32, pb? : Int32) -> Bytes raise XzError
 
 pub fn compress_with_check(Bytes, CheckKind) -> Bytes
 
@@ -18,7 +18,7 @@ pub fn compress_with_options(Bytes, CompressionOptions) -> Bytes
 
 pub fn compress_with_options_and_check(Bytes, CompressionOptions, CheckKind) -> Bytes
 
-pub fn crc32(Bytes) -> UInt
+pub fn crc32(Bytes) -> UInt32
 
 pub fn crc64(Bytes) -> UInt64
 
@@ -26,13 +26,13 @@ pub fn decompress(Bytes) -> Bytes raise XzError
 
 pub fn decompress_lzma1(Bytes) -> Bytes raise XzError
 
-pub fn decompress_lzma1_with_limit(Bytes, Int) -> Bytes raise XzError
+pub fn decompress_lzma1_with_limit(Bytes, Int32) -> Bytes raise XzError
 
-pub fn decompress_with_limit(Bytes, Int) -> Bytes raise XzError
+pub fn decompress_with_limit(Bytes, Int32) -> Bytes raise XzError
 
-pub fn lzma1_declared_size(Bytes) -> Int? raise XzError
+pub fn lzma1_declared_size(Bytes) -> Int32? raise XzError
 
-pub fn lzma1_properties(Bytes) -> (Int, Int, Int) raise XzError
+pub fn lzma1_properties(Bytes) -> (Int32, Int32, Int32) raise XzError
 
 pub fn sha256(Bytes) -> Bytes
 
@@ -43,7 +43,7 @@ pub(all) suberror XzError {
   Unsupported(String)
   Corrupt(String)
   ChecksumMismatch(String)
-  OutputLimitExceeded(Int)
+  OutputLimitExceeded(Int32)
 } derive(@debug.Debug)
 pub fn XzError::to_repr(Self) -> @debug.Repr
 
@@ -55,60 +55,60 @@ pub(all) enum CheckKind {
   Sha256
 } derive(Eq, @debug.Debug)
 pub fn CheckKind::equal(Self, Self) -> Bool
-pub fn CheckKind::from_id(Int) -> Self?
-pub fn CheckKind::id(Self) -> Int
+pub fn CheckKind::from_id(Int32) -> Self?
+pub fn CheckKind::id(Self) -> Int32
 pub fn CheckKind::not_equal(Self, Self) -> Bool
-pub fn CheckKind::size(Self) -> Int
+pub fn CheckKind::size(Self) -> Int32
 pub fn CheckKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompressionOptions {
-  level : Int
-  dict_size : Int
+  level : Int32
+  dict_size : Int32
   filter : FilterMode
 }
-pub fn CompressionOptions::new(level? : Int, dict_size? : Int, filter? : FilterMode) -> Self
+pub fn CompressionOptions::new(level? : Int32, dict_size? : Int32, filter? : FilterMode) -> Self
 
 pub(all) enum FilterMode {
   None
-  Delta(Int)
+  Delta(Int32)
   X86
 }
 
 pub struct XzReader {
   cursor : ByteCursor
-  max_output : Int
-  mut output_so_far : Int
+  max_output : Int32
+  mut output_so_far : Int32
   mut check_kind : CheckKind?
-  records : Array[(Int, Int)]
+  records : Array[(Int32, Int32)]
   mut stream_open : Bool
   mut done : Bool
 }
-pub fn XzReader::new(Bytes, max_output? : Int) -> Self
+pub fn XzReader::new(Bytes, max_output? : Int32) -> Self
 pub fn XzReader::read_block(Self) -> Bytes? raise XzError
 
 pub struct XzStreamDecoder {
   window : Array[Byte]
-  mut consumed : Int
-  max_output : Int
-  mut output_so_far : Int
+  mut consumed : Int32
+  max_output : Int32
+  mut output_so_far : Int32
   mut check_kind : CheckKind?
-  records : Array[(Int, Int)]
+  records : Array[(Int32, Int32)]
   mut stream_open : Bool
   mut done : Bool
   mut input_finished : Bool
-  mut streams_seen : Int
+  mut streams_seen : Int32
 }
-pub fn XzStreamDecoder::buffered(Self) -> Int
+pub fn XzStreamDecoder::buffered(Self) -> Int32
 pub fn XzStreamDecoder::finish_input(Self) -> Unit
 pub fn XzStreamDecoder::is_done(Self) -> Bool
-pub fn XzStreamDecoder::new(max_output? : Int) -> Self
+pub fn XzStreamDecoder::new(max_output? : Int32) -> Self
 pub fn XzStreamDecoder::next(Self) -> Bytes? raise XzError
 pub fn XzStreamDecoder::supply(Self, Bytes) -> Unit
 
 pub struct XzWriter {
   check_kind : CheckKind
   options : CompressionOptions
-  records : Array[(Int, Int)]
+  records : Array[(Int32, Int32)]
   mut started : Bool
   mut finished : Bool
 }

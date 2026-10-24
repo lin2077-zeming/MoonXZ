@@ -6,7 +6,7 @@
 /// place. It is named here so `version_test.mbt` can check it and so a version
 /// bump has one obvious place to change in this package.
 /// `scripts/self_audit.py` checks this constant against `moon.mod`.
-const CLI_VERSION : String = "0.4.5"
+const CLI_VERSION : String = "0.4.6"
 
 ///|
 fn usage() -> Unit {

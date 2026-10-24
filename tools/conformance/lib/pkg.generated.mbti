@@ -29,7 +29,7 @@ pub(all) struct CaseResult {
   implementation : String
   status : String
   detail : String
-  output_bytes : Int
+  output_bytes : Int32
 } derive(ToJson, @json.FromJson)
 pub fn CaseResult::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn CaseResult::to_json(Self) -> Json
@@ -44,8 +44,8 @@ pub(all) struct CaseSpec {
   expected_sha256 : String?
   format : String?
   check : String?
-  stream_chunk : Int?
-  max_output : Int?
+  stream_chunk : Int32?
+  max_output : Int32?
   concatenated : Bool?
   moonxz_expect : String?
   lzma_mbt_expect : String?
@@ -55,7 +55,7 @@ pub fn CaseSpec::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeE
 pub fn CaseSpec::to_json(Self) -> Json
 
 pub(all) struct Manifest {
-  schema_version : Int
+  schema_version : Int32
   corpus_version : String
   generated_by : String
   cases : Array[CaseSpec]
@@ -64,7 +64,7 @@ pub fn Manifest::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeE
 pub fn Manifest::to_json(Self) -> Json
 
 pub(all) struct Report {
-  schema_version : Int
+  schema_version : Int32
   corpus_version : String
   generated_by : String
   summary : ReportSummary
@@ -74,10 +74,10 @@ pub fn Report::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeErr
 pub fn Report::to_json(Self) -> Json
 
 pub(all) struct ReportSummary {
-  total : Int
-  passed : Int
-  failed : Int
-  skipped : Int
+  total : Int32
+  passed : Int32
+  failed : Int32
+  skipped : Int32
 } derive(ToJson, @json.FromJson)
 pub fn ReportSummary::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn ReportSummary::to_json(Self) -> Json
