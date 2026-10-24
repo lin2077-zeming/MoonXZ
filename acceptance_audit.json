@@ -5,8 +5,7 @@
   "toolchain_min": "0.10.14",
 
   "version_locations": [
-    { "file": "README.md", "pattern": "当前版本是\\s*`([^`]+)`" },
-    { "file": "README.md", "pattern": "当前已发布版本为\\s*`([^`]+)`" }
+    { "file": "README.md", "pattern": "当前版本是\\s*`([^`]+)`" }
   ],
 
   "version_constants": [
@@ -19,18 +18,12 @@
     { "file": "Progress.md", "pattern": "(\\d+)\\s*个测试", "source": "moon test" }
   ],
 
-  "_comment_negative": "Refuted-by patterns look for the code that would make each 'not supported' claim false.",
-  "negative_claims": [
-    {
-      "file": "项目申报书.md",
-      "text": "不提供逐字节增量接口",
-      "refuted_by": { "file": "lib/streaming.mbt", "pattern": "pub fn XzStreamDecoder::supply" }
-    }
-  ],
+  "_comment_negative": "Refuted-by patterns look for code that would make a limitation claim false.",
+  "negative_claims": [],
 
   "doc_files": ["README.md", "项目申报书.md"],
   "api_reference_pattern": "`@moonxz\\.([A-Za-z_][\\w]*)",
-  "interface_dirs": ["lib", "cmd"],
+  "interface_dirs": ["lib", "cmd", "tools/conformance"],
 
   "ignored_paths": ["_build/", "target/", ".mooncakes/", "MoonTera/"],
 

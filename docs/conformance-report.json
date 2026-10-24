@@ -1,0 +1,349 @@
+{
+  "schema_version": 1,
+  "corpus_version": "2026-10-24",
+  "generated_by": "MoonXZ conformance",
+  "summary": {
+    "total": 48,
+    "passed": 47,
+    "failed": 0,
+    "skipped": 1
+  },
+  "results": [
+    {
+      "case_id": "xz-empty",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-empty",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-hello-crc64",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-crc64",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-crc32",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-crc32",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-sha256",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-sha256",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-none",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-none",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "lzma-sized",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "lzma-sized",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "lzma-end-marker",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "lzma-end-marker",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-delta",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 5120
+    },
+    {
+      "case_id": "xz-delta",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 5120
+    },
+    {
+      "case_id": "xz-x86",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 117
+    },
+    {
+      "case_id": "xz-x86",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 117
+    },
+    {
+      "case_id": "xz-arm",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "unsupported",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-arm",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 116
+    },
+    {
+      "case_id": "xz-armthumb",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "unsupported",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-armthumb",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 108
+    },
+    {
+      "case_id": "xz-powerpc",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "unsupported",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-powerpc",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 108
+    },
+    {
+      "case_id": "xz-ia64",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "unsupported",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-ia64",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 108
+    },
+    {
+      "case_id": "xz-sparc",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "unsupported",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-sparc",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 108
+    },
+    {
+      "case_id": "xz-arm64",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "unsupported",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-arm64",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 521
+    },
+    {
+      "case_id": "xz-concatenated-padding",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 25
+    },
+    {
+      "case_id": "xz-concatenated-padding",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 25
+    },
+    {
+      "case_id": "xz-128k-boundary",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 131072
+    },
+    {
+      "case_id": "xz-128k-boundary",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 131072
+    },
+    {
+      "case_id": "xz-hello-stream-1-byte",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-hello-stream-1-byte",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "exact",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "xz-truncated",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "error",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-truncated",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "error",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-corrupt-check",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "error",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-corrupt-check",
+      "implementation": "lzma-mbt",
+      "status": "pass",
+      "detail": "error",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-output-limit",
+      "implementation": "moonxz",
+      "status": "pass",
+      "detail": "output_limit",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "xz-output-limit",
+      "implementation": "lzma-mbt",
+      "status": "skip",
+      "detail": "not applicable",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "roundtrip-empty",
+      "implementation": "moonxz->lzma-mbt",
+      "status": "pass",
+      "detail": "cross-decoded",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "roundtrip-empty",
+      "implementation": "lzma-mbt->moonxz",
+      "status": "pass",
+      "detail": "cross-decoded",
+      "output_bytes": 0
+    },
+    {
+      "case_id": "roundtrip-hello",
+      "implementation": "moonxz->lzma-mbt",
+      "status": "pass",
+      "detail": "cross-decoded",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "roundtrip-hello",
+      "implementation": "lzma-mbt->moonxz",
+      "status": "pass",
+      "detail": "cross-decoded",
+      "output_bytes": 27
+    },
+    {
+      "case_id": "roundtrip-128k",
+      "implementation": "moonxz->lzma-mbt",
+      "status": "pass",
+      "detail": "cross-decoded",
+      "output_bytes": 131072
+    },
+    {
+      "case_id": "roundtrip-128k",
+      "implementation": "lzma-mbt->moonxz",
+      "status": "pass",
+      "detail": "cross-decoded",
+      "output_bytes": 131072
+    }
+  ]
+}

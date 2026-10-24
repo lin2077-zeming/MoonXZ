@@ -1,0 +1,87 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonxz-conformance/lib"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn load_manifest(String) -> Manifest raise ConformanceError
+
+pub fn report_json(Report) -> String
+
+pub fn run_manifest(String) -> Report raise ConformanceError
+
+pub fn smoke() -> Bool raise
+
+pub fn write_report(String, Report) -> Unit raise ConformanceError
+
+// Errors
+pub(all) suberror ConformanceError {
+  ConformanceError(String)
+} derive(@debug.Debug)
+pub fn ConformanceError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct CaseResult {
+  case_id : String
+  implementation : String
+  status : String
+  detail : String
+  output_bytes : Int
+} derive(ToJson, @json.FromJson)
+pub fn CaseResult::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn CaseResult::to_json(Self) -> Json
+
+pub(all) struct CaseSpec {
+  id : String
+  description : String
+  operation : String
+  input : String
+  input_sha256 : String
+  expected : String?
+  expected_sha256 : String?
+  format : String?
+  check : String?
+  stream_chunk : Int?
+  max_output : Int?
+  concatenated : Bool?
+  moonxz_expect : String?
+  lzma_mbt_expect : String?
+  source : String
+} derive(ToJson, @json.FromJson)
+pub fn CaseSpec::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn CaseSpec::to_json(Self) -> Json
+
+pub(all) struct Manifest {
+  schema_version : Int
+  corpus_version : String
+  generated_by : String
+  cases : Array[CaseSpec]
+} derive(ToJson, @json.FromJson)
+pub fn Manifest::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn Manifest::to_json(Self) -> Json
+
+pub(all) struct Report {
+  schema_version : Int
+  corpus_version : String
+  generated_by : String
+  summary : ReportSummary
+  results : Array[CaseResult]
+} derive(ToJson, @json.FromJson)
+pub fn Report::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn Report::to_json(Self) -> Json
+
+pub(all) struct ReportSummary {
+  total : Int
+  passed : Int
+  failed : Int
+  skipped : Int
+} derive(ToJson, @json.FromJson)
+pub fn ReportSummary::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn ReportSummary::to_json(Self) -> Json
+
+// Type aliases
+
+// Traits

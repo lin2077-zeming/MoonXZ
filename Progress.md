@@ -1,26 +1,47 @@
 # MoonXZ Progress
 
-更新时间：2026-09-25
+更新时间：2026-10-24
 
 ## 项目定位
 
 - 项目名：MoonXZ
 - 模块名：`lin2077-zeming/moonxz`
-- 当前版本：`0.4.4`（已发布至 mooncakes.io）
+- 当前版本：`0.4.5`（已发布至 mooncakes.io）
 - GitHub 仓库：https://github.com/lin2077-zeming/MoonXZ
 - 当前分支：`main`
-- 项目方向：纯 MoonBit 实现的 XZ / LZMA / LZMA2 压缩、解压、校验和工具库
+- 项目方向：纯 MoonBit XZ/LZMA 实现 + 一致性与差分验证工具包
 - 许可证：Apache-2.0
 
 ## 当前状态摘要
 
-项目已经具备完整的 XZ/LZMA2 解码和压缩编码能力，并新增了 `.lzma` 旧格式的
-双向支持。交付的 filter 是 delta 与 x86 BCJ，两者都与 `liblzma` 双向互通并通过
-"长度 × 内容形态"全矩阵测试；其余 BCJ filter id 一律返回 `Unsupported`。支持
-多目标构建、流式 API、文件 CLI，并与 Python `lzma` 做双向互操作验证。
-GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
+## 2026-10-24 战略与证据更新
 
-当前 `0.4.4` 已正式发布至 mooncakes.io。**第一次验收未通过，四个问题已全部
+项目不再把“成为功能最全的通用 XZ 库”作为唯一叙事。`aurora0x27/lzma-mbt@0.1.0`
+覆盖了全部 BCJ、`Format::Auto` 和更完整的流式接口，因此当前增量改为：
+
+- 保留 MoonXZ 作为第二个独立 MoonBit 实现和文件级 CLI；
+- 新增独立 `tools/conformance` 模块，对同一语料同时运行 MoonXZ 与 `lzma-mbt`；
+- 用 JSON manifest、SHA-256、来源说明和 JSON 报告形成可审计证据；
+- 以官方 XZ Utils 5.8.3 与 Python liblzma 作为外部 oracle；
+- 把 BCJ 缺口描述为当前版本限制和后续补齐计划，不再写成永久排除。
+
+当前一致性语料有 24 个场景、48 个实现级检查。运行结果为 47 pass、0 fail、
+1 skip（`lzma-mbt` 没有对应的明文输出上限）。验证过程中发现并修复了外部 XZ 流
+逐字节解码的真实缺陷：Block Header 省略压缩大小时，未收全的块会被误报为
+`Truncated`。库测试数因此从 46 增至 47。
+
+完整规范版本、支持矩阵和证据索引见 `docs/compatibility.md`。申报叙事已改为
+“实现 + 可复用验证基础设施”，不再声称 MoonBit 生态缺少 XZ/LZMA。
+
+## 0.4.3 至 0.4.4 历史状态
+
+项目已经具备 XZ/LZMA2 解码和压缩编码能力，并支持 `.lzma` 旧格式。当前仍只交付
+delta 与 x86 BCJ，其余 BCJ filter id 返回 `Unsupported`；一致性工具已经为 ARM
+和 ARM64 保留了真实的跨实现对照。支持多目标构建、流式 API、文件 CLI，并与
+Python `lzma` 做双向互操作验证。GitHub Actions 已在 Windows、Ubuntu、macOS
+三个平台通过。
+
+`0.4.4` 已正式发布至 mooncakes.io。**第一次验收指出的四个问题已全部
 复现并修好**，详见 CHANGELOG 的 0.4.3 节：
 
 1. **LZMA2 未压缩长度字段进位错误**（严重）：18 位长度字段先给低位加一、再与
@@ -157,7 +178,7 @@ GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 - 库包位于 `lin2077-zeming/moonxz/lib`
 - CLI 位于 `cmd/main`
 - `moon check --deny-warn --target all` 通过
-- `moon test --deny-warn --target all` 通过，46 个测试在四个目标全部通过
+- `moon test --deny-warn --target all` 通过，47 个测试在四个目标全部通过
 - `moon fmt --check` 通过
 - `moon bundle --all` 通过
 - Python `lzma` 双向互操作测试通过
@@ -221,13 +242,17 @@ GitHub Actions 已在 Windows、Ubuntu、macOS 三个平台通过。
 
 ### 必做
 
-- 无。`0.4.2` 已发布并复验通过；版本号已统一为 `0.4.2`
+- 发布 `0.4.5`，并在 mooncakes 页面确认 tarball 与仓库一致
+- 用更新后的 `项目申报书.md` 重新提交报名问卷
+- 向组委会确认 10 月 20 日驳回邮件与 10 月 21 日通过邮件的最终审批状态
 
 ### 已完成
 
-- 正式执行 `moon publish` → 当前线上版本 `0.4.4`
+- 正式执行 `moon publish` → 当时线上版本 `0.4.4`
 - 在 mooncakes.io 确认可见且可安装 → `yanked=False`，全新工程可 `moon add`
-- 统一 README、CLI banner、申报书、本文件的版本号 → 均为 `0.4.4`
+- 完成 `tools/conformance` 双实现 runner、24 个场景/48 个检查
+- 完成 `docs/compatibility.md`，钉定 XZ Utils 5.8.3 与支持证据
+- 修复外部 XZ 流逐字节解码误报 `Truncated`，库测试 46 → 47
 
 ### 已解决：mooncakes 页面上的 README 快照
 
@@ -244,7 +269,9 @@ mooncakes 在**发布时**抓取 README 快照，已发布版本无法修改，�
 
 ### 可选后续
 
-- 补齐 ARM、ARM64、SPARC、ARM-Thumb、PowerPC、IA64 BCJ filter（前提是找到权威实现细节；若补齐，必须同时覆盖长度与内容形态）
+- 在一致性语料中补齐 ARM、ARM64、SPARC、ARM-Thumb、PowerPC、IA64 BCJ
+  （使用 xz 5.8.3 生成向量，并同时覆盖长度与内容形态）
+- 增加更多厂商/实现的适配器，保持 runner 与具体库解耦
 - 更深的 match finder 调优和压缩率基准
 - 大文件性能和内存基准
 - 更大文件的流式 `.lzma` 支持
@@ -262,6 +289,7 @@ moon check --deny-warn --target all
 moon test --deny-warn --target all
 moon fmt --check
 moon bundle --all
+moon run tools/conformance/cmd/main -- run tools/conformance/corpus/manifest.json _build/conformance-report.json
 python scripts/interop.py
 ```
 

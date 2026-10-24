@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.5
+
+- 新增独立的 `tools/conformance` MoonBit 模块。它由 JSON manifest 驱动，
+  对同一组 fixture 同时运行 MoonXZ 与 `aurora0x27/lzma-mbt`，输出可机器读取的
+  差分报告。外部 Python/`xz` 只负责生成和独立校验语料，验证主体仍在 MoonBit。
+- 新增 24 个语料场景、48 个实现级检查，覆盖 XZ / `.lzma`、四类 check、
+  Delta / x86、六种未实现 BCJ 的拒绝路径、ARM64 互操作、拼接流、
+  128 KiB LZMA2 边界、
+  1 字节分块解码、截断、校验损坏和输出上限。
+- 修复流式解码器处理外部 XZ 流时的误报：当 Block Header 省略可选压缩大小时，
+  尚未收全 LZMA2 数据会被误判为 `Truncated`。现在 `XzStreamDecoder` 等待更多
+  输入，并在 `finish_input` 后仍能正确判断是否真正截断。新增外部 Python fixture
+  的逐字节回归测试，测试数 46 → 47。
+- ARM64 fixture 由 MoonBit `lzma-mbt` 编码，并使用官方 `xz 5.8.3` 独立解码校验；
+  选择该向量是为了避免用同一个实现自证正确性。
+- 新增 `docs/compatibility.md`，钉定 XZ Utils 5.8.3 的文件格式规范、完整支持矩阵、
+  当前限制和每项结论对应的验证用例。
+
 ## 0.4.4
 
 无功能变更。`0.4.3` 的代码是正确的，但它在 `Int` → `Int32` 迁移之前发布，

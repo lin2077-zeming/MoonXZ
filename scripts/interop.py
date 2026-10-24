@@ -133,6 +133,7 @@ def main() -> int:
     # BCJ filter with wrong address arithmetic corrupts data silently.
     refused = [
         ("arm", lzma.FILTER_ARM),
+        ("ia64", lzma.FILTER_IA64),
         ("powerpc", lzma.FILTER_POWERPC),
         ("sparc", lzma.FILTER_SPARC),
         ("armthumb", lzma.FILTER_ARMTHUMB),

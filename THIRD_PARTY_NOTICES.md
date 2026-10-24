@@ -28,5 +28,32 @@ The file CLI uses:
 - Source: https://github.com/moonbitlang/x
 - License: Apache-2.0
 
-This dependency is only used by `cmd/main`; the `lib` package does not depend
-on the file system or on this module.
+This dependency is used by `cmd/main` and the independent
+`tools/conformance` module; the published `lib` package does not depend on the
+file system or on this module.
+
+## aurora0x27/lzma-mbt
+
+The independent conformance module uses this library as a second implementation
+under test:
+
+- Project: `aurora0x27/lzma-mbt`
+- Version: `0.1.0`
+- Source: https://github.com/aurora0x27/lzma-mbt
+- License: Apache-2.0
+
+No source file from that project is copied into MoonXZ. The conformance runner
+imports the published MoonBit package and compares observable behaviour through
+the committed corpus.
+
+## XZ Utils
+
+The corpus generation and independent ARM64 validation use the official XZ
+Utils `5.8.3` Windows executable as an external oracle:
+
+- Project: XZ Utils
+- Source: https://github.com/tukaani-project/xz/releases/tag/v5.8.3
+- License: see the upstream release; the executable is not redistributed here
+
+The committed ARM64 fixture is a test artifact produced by `lzma-mbt` and
+validated byte-for-byte with that executable before being added to the corpus.

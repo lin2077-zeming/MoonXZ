@@ -107,6 +107,19 @@ test "decode Python lzma fixture" {
 }
 
 ///|
+/// External xz streams usually omit the optional compressed size in the Block
+/// Header. One-byte feeding must wait for the LZMA2 end marker instead of
+/// reporting a truncated stream while the block is still arriving.
+test "streaming decoder handles Python fixture without block sizes" {
+  let fixture = @hex.decode(
+    "fd377a585a000004e6d6b4460200210116000000742fe5a3e0010700285d00269becdc582d64a56402725f68cd5025d1696dcb146ffbb84cf3a46ea2c3f777d3ef7e15960000000084409d92403699d100014488020000007faf037cb1c467fb020000000004595a",
+  )
+  let expected = Bytes::repeat(b"MoonXZ interoperability fixture.\n", 8)
+  let streamed = decode_streaming_one_byte_at_a_time(fixture, 1 << 20)
+  @test.assert_eq(streamed, expected)
+}
+
+///|
 test "decode Python delta filter fixture" {
   let fixture = @hex.decode(
     "fd377a585a000004e6d6b44602010301012101161c477856e000d700265d0022194100f7eadad6ee9e5f3cd81dd2628ec8d5393eef84ae75368c9ce2f9c575c494b6d2c000000000f4b9491e0e91073c000142d801000000472cfc80b1c467fb020000000004595a",
@@ -134,9 +147,9 @@ fn bcj_padding() -> Bytes {
 }
 
 ///|
-/// ARM, ARM64, ARM-Thumb, PowerPC, SPARC and IA64 are all defined by the XZ
-/// specification but are not shipped, so a block that uses one must be refused
-/// rather than decoded to wrong bytes.
+/// ARM, ARM-Thumb, PowerPC and SPARC fixtures cover the refusal path in the
+/// library test suite. The conformance corpus also covers ARM64 and IA64 with a
+/// second implementation and official xz vectors.
 ///
 /// These ids were implemented and withdrawn. They either could not be aligned
 /// with liblzma or silently corrupted data on inputs outside the test set, so the

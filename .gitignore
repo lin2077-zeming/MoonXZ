@@ -6,6 +6,7 @@ target
 .moonagent/
 *.xz
 !tests/fixtures/*.xz
+!tools/conformance/corpus/fixtures/*.xz
 
 # Local competition handouts, not part of the published project.
 比赛要求.md

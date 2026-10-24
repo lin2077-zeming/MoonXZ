@@ -332,7 +332,14 @@ pub fn XzStreamDecoder::next(self : XzStreamDecoder) -> Bytes? raise XzError {
     ) = parse_block_header(header)
     let compressed_size = match compressed_size_opt {
       Some(value) => value
-      None => scan_lzma2_size(cursor.data, cursor.pos)
+      None =>
+        scan_lzma2_size(cursor.data, cursor.pos) catch {
+          // External xz streams commonly omit the optional compressed size in
+          // the Block Header. Until the LZMA2 end marker arrives, the scanner
+          // cannot know the size, so a short window means "need more input".
+          Truncated(_) => return None
+          error => raise error
+        }
     }
     match uncompressed_size_opt {
       Some(expected) =>

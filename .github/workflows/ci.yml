@@ -97,6 +97,15 @@ jobs:
       - name: Python interoperability
         run: python scripts/interop.py
 
+      - name: MoonBit conformance corpus
+        run: moon run tools/conformance/cmd/main -- run tools/conformance/corpus/manifest.json _build/conformance-report.json
+
+      - name: Upload conformance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-${{ matrix.os }}
+          path: _build/conformance-report.json
+
       # The benchmarks double as an end-to-end exercise of the largest inputs the
       # library claims to handle, so they run in CI as well as on demand. They
       # also print the ratio table the README quotes, which keeps those numbers

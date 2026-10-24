@@ -1,0 +1,8 @@
+import {
+  "lin2077-zeming/moonxz/lib" @moonxz,
+  "aurora0x27/lzma-mbt" @lzma,
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/hex",
+  "moonbitlang/core/json",
+  "moonbitlang/x/fs",
+}

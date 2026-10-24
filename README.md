@@ -1,26 +1,30 @@
 # MoonXZ
 
-MoonXZ 是 MoonBit 生态中的纯 MoonBit XZ / LZMA / LZMA2 工具包。项目目标是为
-MoonBit 补上标准 `.xz` 与旧格式 `.lzma` 的读取、校验和写入能力，并保持运行时
-无关、无 FFI、可直接发布到 mooncakes.io。
+MoonXZ 由两个部分组成：纯 MoonBit 的 XZ / LZMA / LZMA2 实现，以及一个面向
+MoonBit 生态的 XZ 一致性与差分验证工具。前者保持运行时无关、无 FFI，可直接发布
+到 mooncakes.io；后者用同一组 fixture 同时运行 MoonXZ 与
+`aurora0x27/lzma-mbt`，把“支持什么、拒绝什么、与另一个实现是否一致”变成可执行
+报告。
 
-当前版本是 `0.4.4`。解压端支持标准 XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，以及
-delta 与 x86 BCJ filter；压缩端具备 LZMA2 range encoder、hash chain match finder、
-压缩级别和字典大小参数，并可写出 `.lzma`。默认压缩级别为 6，字典大小为 8 MiB；
-级别 0 保留规范的未压缩 LZMA2 块模式。
+仓库当前版本是 `0.4.5`。解压端支持标准 XZ 容器、LZMA2 压缩块、`.lzma` 旧格式，
+以及 delta 与 x86 BCJ filter；压缩端具备 LZMA2 range encoder、hash chain match
+finder、压缩级别和字典大小参数，并可写出 `.lzma`。默认压缩级别为 6，字典大小为
+8 MiB；级别 0 保留规范的未压缩 LZMA2 块模式。
 
-> **请使用 `0.4.4`。**
+> **发布说明。**
 >
 > - `0.4.2` 及更早版本**有解码缺陷**：解析 LZMA2 未压缩长度字段时存在进位错误，
 >   128 KiB / 256 KiB / 1 MiB 等常见体积的合法 Python / `xz-utils` 输出会解码
 >   失败；同一批版本的长度校验还存在整数溢出。请勿用它们解压外部产生的 XZ 文件
-> - `0.4.3` 已修复上述全部缺陷，功能与 `0.4.4` 相同，仅缺少 `Int` → `Int32`
->   的写法对齐（`moonc` 0.10.15 起的格式化风格）
+> - `0.4.3` 修复上述缺陷；`0.4.4` 只同步了 `moonc 0.10.15` 的格式与发布源码
 > - `0.4.1` 及更早版本还会在新工具链上因 `implicit_impl_as_method` 构建失败
+> - `0.4.5` 修复外部 XZ 流的逐字节流式解码误报，并加入一致性验证模块；发布前
+>   mooncakes 上的最新版本是 `0.4.5`
 >
-> 构建要求 `moonc` 0.10.14 或更高；`0.4.4` 已在 `moonc v0.10.15+943464bfa` 上
+> 构建要求 `moonc` 0.10.14 或更高；当前源码已在 `moonc v0.10.15+943464bfa` 上
 > 完整验证（`check --deny-warn`、四个后端的 `test --deny-warn`、`fmt --check`、
-> `bundle --all`、CLI 示例、基准与互操作脚本）。详见 `CHANGELOG.md`。
+> `bundle --all`、CLI 示例、一致性语料、基准与互操作脚本）。详见
+> `CHANGELOG.md` 和 `docs/compatibility.md`。
 
 ## 功能状态
 
@@ -45,10 +49,11 @@ delta 与 x86 BCJ filter；压缩端具备 LZMA2 range encoder、hash chain matc
 | 流式 Reader / Writer | 支持 |
 | 有界窗口流式解码（`XzStreamDecoder`） | 支持 |
 | 文件 CLI | 支持 |
+| 一致性 / 差分验证工具（`tools/conformance`） | 支持 |
 
 ## 安装与使用
 
-发布到 mooncakes.io 后可以添加模块（当前已发布版本为 `0.4.4`）：
+添加已发布模块（mooncakes 当前最新版本为 `0.4.5`）：
 
 ```text
 moon add lin2077-zeming/moonxz
@@ -152,17 +157,17 @@ let declared = @moonxz.lzma1_declared_size(legacy)
 | --- | --- | --- | --- |
 | 0x03 | delta | 支持 | liblzma 双向 |
 | 0x04 | x86 | 支持 | liblzma 双向 |
-| 0x05 | PowerPC | 未实现，返回 `Unsupported` | — |
-| 0x06 | IA64 | 未实现，返回 `Unsupported` | — |
-| 0x07 | ARM | 未实现，返回 `Unsupported` | — |
-| 0x08 | ARM-Thumb | 未实现，返回 `Unsupported` | — |
-| 0x09 | SPARC | 未实现，返回 `Unsupported` | — |
-| 0x0A | ARM64 | 未实现，返回 `Unsupported` | — |
+| 0x05 | PowerPC | 当前版本返回 `Unsupported` | 一致性工具保留扩展位 |
+| 0x06 | IA64 | 当前版本返回 `Unsupported` | 一致性工具保留扩展位 |
+| 0x07 | ARM | 当前版本返回 `Unsupported` | `xz-arm` 与 `lzma-mbt` 差分 |
+| 0x08 | ARM-Thumb | 当前版本返回 `Unsupported` | 一致性工具保留扩展位 |
+| 0x09 | SPARC | 当前版本返回 `Unsupported` | 一致性工具保留扩展位 |
+| 0x0A | ARM64 | 当前版本返回 `Unsupported` | `xz-arm64`，官方 xz 5.8.3 校验 fixture |
 | 0x21 | LZMA2 | 支持 | liblzma 双向 |
 
 未实现的 filter 会明确报错，不会静默产出错误字节。
 
-### 为什么只交付 delta 与 x86 两个 filter
+### 当前版本边界与补齐计划
 
 delta、x86 是仅有的两个"长度 × 内容形态"全矩阵通过、且与 `liblzma` 双向互通的
 filter：MoonXZ 写出的流 liblzma 能解，liblzma 写出的流 MoonXZ 也能解。
@@ -172,13 +177,33 @@ filter：MoonXZ 写出的流 liblzma 能解，liblzma 写出的流 MoonXZ 也能
 
 - **ARM、SPARC**：在特定字上地址运算溢出，编码后再解码无法还原原文，liblzma
   也会拒绝 MoonXZ 写出的流（`Corrupt input data`）
-- **ARM64**：同样的问题，而且 `liblzma` 根本没有暴露 ARM64 filter，没有任何第三方
-  实现可以对照验证
+- **ARM64**：早先实现存在同类溢出；现在可由官方 `xz 5.8.3` 与 `lzma-mbt` 提供
+  可执行对照，因此补齐路径已经明确
 - **ARM-Thumb、PowerPC、IA64**：无法归纳出与 `liblzma` 一致的字节变换规则
 
 BCJ 位域算错的后果是解码结果静默变成错误字节，block check 只能发现不一致、无法
-区分"正确"与"看起来正确"。因此这些 filter 全部返回 `Unsupported`，而不是交付一个
-"大多数情况下正确"的实现。具体现象记录在 `docs/DESIGN.md`。
+区分"正确"与"看起来正确"。当前版本因此明确返回 `Unsupported`，而不是交付一个
+"大多数情况下正确"的实现；后续版本会在同一套一致性语料上补齐并验收，而不是把
+这些标准 filter 排除在项目目标之外。具体现象记录在 `docs/DESIGN.md`。
+
+## 一致性与差分验证
+
+`tools/conformance` 是一个独立的 MoonBit 模块，不进入库的公共依赖。它读取
+`corpus/manifest.json`，校验每个 fixture 的 SHA-256，然后把同一用例分别交给
+MoonXZ 与 `lzma-mbt`，输出逐项 JSON 报告：
+
+```text
+moon run tools/conformance/cmd/main -- run tools/conformance/corpus/manifest.json _build/conformance-report.json
+```
+
+当前语料覆盖 XZ / `.lzma`、四类 check、Delta / x86、六个未实现 BCJ 的拒绝路径、
+ARM64 互操作、拼接流与 padding、128 KiB LZMA2 边界、1 字节分块解码、截断、损坏
+校验和输出上限。ARM64 fixture 由
+MoonBit 的 `lzma-mbt` 编码，再由官方 `xz 5.8.3` 独立解码确认，避免同源自证。
+
+兼容矩阵、规范版本和每个支持结论对应的用例见 `docs/compatibility.md`；语料生成与
+调用方法见 `tools/conformance/README.md`。当前一次完整运行的机器可读结果保存在
+`docs/conformance-report.json`。
 
 ## CLI
 
@@ -279,17 +304,24 @@ moon test --target all --deny-warn
 - 声明膨胀：头部声明超大输出时必须在输出限制处失败
 - 流式 Writer/Reader 的多 block 读写
 - 流式 `XzStreamDecoder` 逐字节喂入与一次性解码逐字节一致，含拼接流与 padding；
-  另覆盖截断检测与输出上限
+  另覆盖外部 XZ 流省略 Block 压缩大小时的逐字节输入、截断检测与输出上限
 - 文件 CLI 压缩、解压和内容一致性
 - Python `lzma` 生成的压缩 XZ 测试向量
 - 输出大小限制错误
 
 `scripts/interop.py` 还可以调用 CLI 做额外的 Python `lzma` 双向互操作检查，
-覆盖 XZ 四类 check、x86/delta 两个 filter、`.lzma` 的两种头形式，并断言其余 filter id 返回 `Unsupported`。
+覆盖 XZ 四类 check、x86/delta 两个 filter、`.lzma` 的两种头形式，并断言
+ARM、ARM-Thumb、PowerPC、SPARC、IA64 返回 `Unsupported`；ARM64 由一致性语料和
+官方 xz 5.8.3 覆盖。
 
 这些向量由 Python 3.14 的 `liblzma`（`xz-utils` 使用的同一份 C 实现）现场生成，
 用于交叉验证 MoonXZ 的解码结果；`scripts/interop.py` 同时验证反方向，即
 Python `lzma` 能正确解压 MoonXZ 写出的数据。
+
+`tools/conformance` 提供更强的实现级差分检查：同一 fixture 同时运行 MoonXZ 与
+`aurora0x27/lzma-mbt`，校验来源哈希并输出 JSON 报告。当前语料 24 个场景、48 个
+实现级检查；运行方式与证据说明见 `tools/conformance/README.md` 和
+`docs/compatibility.md`。
 
 ### 验收级自查
 
@@ -313,6 +345,7 @@ python scripts/self_audit.py .
 
 ```text
 moon.mod                 模块元数据
+moon.work                workspace：根库 + 一致性工具
 lib/moon.pkg             库包配置
 lib/moonxz.mbt           公共 API
 lib/xz.mbt               XZ 容器解析和写入
@@ -329,6 +362,8 @@ lib/streaming.mbt        流式 Reader / Writer 与有界窗口解码器
 lib/check.mbt            CRC32 / CRC64 / SHA-256
 lib/util.mbt             字节游标、VLI 和序列化辅助
 cmd/main/                可运行 CLI
+tools/conformance/       独立的一致性 / 差分验证模块
+docs/compatibility.md     规范版本、支持矩阵和证据索引
 docs/DESIGN.md           实现设计说明
 ```
 
